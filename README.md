@@ -24,7 +24,7 @@ body{margin:0;font-family:Arial;}
 
 // FIREBASE
 const firebaseConfig = {
-apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -37,8 +37,10 @@ const map = L.map('map').setView([15.5,120.9],13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// LIVE DATA
-db.collection("attendance").onSnapshot(snapshot=>{
+// 🔥 LOAD ALL HISTORY (NO DELETE, NO UPDATE)
+db.collection("attendance")
+.orderBy("time")
+.onSnapshot(snapshot=>{
 
 snapshot.forEach(doc=>{
 

@@ -18,12 +18,14 @@ justify-content:space-around;
 
 .card{text-align:center;}
 
-#map{height:60vh;}
+#map{height:55vh;}
+
+.section{
+padding:10px;
+}
 
 .list{
-padding:10px;
-font-size:14px;
-max-height:30vh;
+max-height:25vh;
 overflow:auto;
 }
 
@@ -41,23 +43,26 @@ background:#111827;
 <div class="top">
 <div class="card">
 <div id="total">0</div>
-<small>Total Today</small>
+<small>Total Logs</small>
 </div>
 
 <div class="card">
-<div id="active">0</div>
-<small>Active (IN)</small>
+<div id="in">0</div>
+<small>Total IN</small>
 </div>
 
 <div class="card">
 <div id="out">0</div>
-<small>Out</small>
+<small>Total OUT</small>
 </div>
 </div>
 
 <div id="map"></div>
 
+<div class="section">
+<h3>📍 Latest Status (Per Employee)</h3>
 <div class="list" id="users"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -65,8 +70,9 @@ background:#111827;
 
 <script>
 
+// FIREBASE
 const firebaseConfig = {
-apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -74,59 +80,80 @@ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// MAP
 const map = L.map('map').setView([15.5,120.9],13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers = [];
 
-db.collection("attendance").onSnapshot(snapshot=>{
+// 🔥 OFFSET para hindi magpatong
+function offset(lat, lon, i){
+let shift = i * 0.00003;
+return [lat + shift, lon + shift];
+}
 
+// REALTIME
+db.collection("attendance")
+.orderBy("timestamp")
+.onSnapshot(snapshot=>{
+
+// clear old markers
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
-let today = new Date().toLocaleDateString();
-
-let users = {};
-let total=0, active=0, out=0;
+let total=0,inCount=0,outCount=0;
+let users={};
+let i=0;
 
 snapshot.forEach(doc=>{
 
 const d = doc.data();
 
-if(d.date !== today) return;
-
 total++;
 
-// 🔥 latest per user
+if(d.type==="IN") inCount++;
+if(d.type==="OUT") outCount++;
+
+// 🔥 LATEST PER USER
 if(!users[d.name] || users[d.name].timestamp < d.timestamp){
 users[d.name] = d;
 }
 
-});
+// 🔥 OFFSET PARA HINDI MAGPATONG
+let [lat,lon] = offset(d.lat, d.lon, i);
 
-// render users
-document.getElementById("users").innerHTML="";
+let color = d.type==="IN" ? "green" : "red";
 
-Object.values(users).forEach(u=>{
-
-let color = u.type==="IN" ? "green" : "red";
-
-if(u.type==="IN") active++;
-else out++;
-
-let marker = L.circleMarker([u.lat,u.lon],{
-radius:10,
+let marker = L.circleMarker([lat,lon],{
+radius:8,
 color:color,
 fillColor:color,
 fillOpacity:0.9
 }).addTo(map);
 
-marker.bindPopup(`${u.name}<br>${u.type}<br>${u.time}`);
+marker.bindPopup(`
+<b>${d.name}</b><br>
+${d.type}<br>
+${d.time}<br>
+${d.date}
+`);
 
 markers.push(marker);
+i++;
 
-// USER CARD
+});
+
+// 🔥 UPDATE COUNTERS
+document.getElementById("total").innerText = total;
+document.getElementById("in").innerText = inCount;
+document.getElementById("out").innerText = outCount;
+
+// 🔥 RENDER LATEST USERS
+document.getElementById("users").innerHTML="";
+
+Object.values(users).forEach(u=>{
+
 document.getElementById("users").innerHTML += `
 <div class="user">
 <b>${u.name}</b><br>
@@ -136,10 +163,6 @@ Time: ${u.time}
 `;
 
 });
-
-document.getElementById("total").innerText = total;
-document.getElementById("active").innerText = active;
-document.getElementById("out").innerText = out;
 
 });
 

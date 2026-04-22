@@ -38,13 +38,17 @@ const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 // LIVE DATA
-db.collection("attendance").onSnapshot(snapshot=>{
+db.collection("attendance")
+.orderBy("time")
+.onSnapshot(snapshot=>{
+
+console.log("🔥 TOTAL RECORDS:", snapshot.size);
 
 snapshot.docChanges().forEach(change=>{
 
-if(change.type==="added"){
-
 const d=change.doc.data();
+
+if(change.type==="added"){
 
 L.marker([d.lat,d.lon]).addTo(map)
 .bindPopup(`
@@ -58,8 +62,6 @@ ${d.time}
 });
 
 });
-
-</script>
 
 </body>
 </html>

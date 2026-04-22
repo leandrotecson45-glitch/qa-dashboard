@@ -8,15 +8,13 @@
 
 <style>
 body{margin:0;font-family:Arial;}
-#map{height:70vh;}
-#log{height:30vh;overflow:auto;background:#111;color:#0f0;font-size:12px;padding:10px;}
+#map{height:100vh;}
 </style>
 </head>
 
 <body>
 
 <div id="map"></div>
-<div id="log">QA DEBUG:</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -24,8 +22,9 @@ body{margin:0;font-family:Arial;}
 
 <script>
 
+// FIREBASE
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -33,36 +32,34 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// MAP
 const map = L.map('map').setView([15.5,120.9],13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-function log(msg){
-document.getElementById("log").innerHTML += "<br>"+msg;
-console.log(msg);
-}
-
-log("🔄 Listening Firebase...");
-
+// LIVE DATA
 db.collection("attendance").onSnapshot(snapshot=>{
 
-log("🔥 DATA COUNT: "+snapshot.size);
+snapshot.forEach(doc=>{
 
-snapshot.docChanges().forEach(change=>{
+const d=doc.data();
 
-const d=change.doc.data();
+let color = d.type==="TIME IN" ? "blue" : "red";
 
-log("📍 "+d.name+" "+d.type);
-
-if(change.type==="added"){
-L.marker([d.lat,d.lon]).addTo(map)
-.bindPopup(d.name+" "+d.type+"<br>"+d.time);
-}
+L.circleMarker([d.lat,d.lon],{
+radius:10,
+color:color,
+fillColor:color,
+fillOpacity:0.9
+}).addTo(map)
+.bindPopup(`
+<b>${d.name}</b><br>
+${d.type}<br>
+${d.time}
+`);
 
 });
 
-}, err=>{
-log("❌ SNAPSHOT ERROR: "+err.message);
 });
 
 </script>

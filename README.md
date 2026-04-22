@@ -1,73 +1,44 @@
 
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QA Dashboard</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{
-margin:0;
-font-family:Arial;
-background:#0b1220;
-color:white;
-}
+body{margin:0;font-family:Arial;background:#0b1220;color:white;}
 
-/* TOP CARDS */
 .top{
-display:flex;
-gap:10px;
 padding:10px;
 background:#0f172a;
-position:sticky;
-top:0;
-z-index:1000;
+display:flex;
+gap:10px;
 }
 
 .card{
 flex:1;
 background:#111827;
 padding:10px;
-border-radius:12px;
+border-radius:10px;
 text-align:center;
 }
 
-.card div{
-font-size:18px;
-font-weight:bold;
-}
+#map{height:50vh;}
 
-/* MAP */
-#map{
-height:45vh;
-border-bottom-left-radius:20px;
-border-bottom-right-radius:20px;
-}
+.section{padding:10px;}
 
-/* SECTION */
-.section{
-padding:10px;
-}
-
-.details{
-max-height:35vh;
-overflow:auto;
-}
-
-/* USER CARD */
 .user{
 background:#111827;
-padding:12px;
+padding:10px;
 margin-bottom:8px;
-border-radius:12px;
+border-radius:10px;
 font-size:14px;
 }
 
 .status-in{color:#22c55e;}
 .status-out{color:#ef4444;}
 
-/* POPUP */
 .popup{
 max-height:150px;
 overflow:auto;
@@ -79,27 +50,16 @@ font-size:12px;
 <body>
 
 <div class="top">
-<div class="card">
-<div id="total">0</div>
-<small>Total</small>
-</div>
-
-<div class="card">
-<div id="in">0</div>
-<small>IN</small>
-</div>
-
-<div class="card">
-<div id="out">0</div>
-<small>OUT</small>
-</div>
+<div class="card"><div id="total">0</div><small>Total</small></div>
+<div class="card"><div id="in">0</div><small>IN</small></div>
+<div class="card"><div id="out">0</div><small>OUT</small></div>
 </div>
 
 <div id="map"></div>
 
 <div class="section">
-<h3>👥 Employees</h3>
-<div class="details" id="users"></div>
+<h3>Employees</h3>
+<div id="users"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -118,13 +78,11 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const map = L.map('map').setView([15.5,120.9],13);
-
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers=[];
 
-db.collection("attendance")
-.orderBy("timestamp")
+db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
 markers.forEach(m=>map.removeLayer(m));
@@ -135,6 +93,7 @@ let users = {};
 
 let total=0,inCount=0,outCount=0;
 
+// PROCESS
 snapshot.forEach(doc=>{
 
 const d = doc.data();
@@ -145,7 +104,6 @@ if(d.type==="OUT") outCount++;
 
 // GROUP LOCATION
 let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
-
 if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
 
@@ -156,7 +114,7 @@ users[d.name] = d;
 
 });
 
-// MARKERS
+// MAP GROUPED PINS
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
@@ -169,7 +127,9 @@ logs.forEach(l=>{
 html += `
 <div>
 <b>${l.name}</b><br>
-${l.type} - ${l.time}
+${l.type} - ${l.time}<br>
+KM: ${l.km.toFixed(2)}<br>
+${l.photo ? `<img src="${l.photo}" width="100%">` : ""}
 <hr>
 </div>
 `;
@@ -193,12 +153,12 @@ markers.push(marker);
 
 });
 
-// COUNTERS
+// STATS
 document.getElementById("total").innerText = total;
 document.getElementById("in").innerText = inCount;
 document.getElementById("out").innerText = outCount;
 
-// USERS LIST
+// USERS
 document.getElementById("users").innerHTML="";
 
 Object.values(users).forEach(u=>{
@@ -210,6 +170,7 @@ document.getElementById("users").innerHTML += `
 <b>${u.name}</b><br>
 Status: <span class="${statusClass}">${u.type}</span><br>
 Time: ${u.time}<br>
+KM (last): ${u.km.toFixed(2)}<br>
 📍 ${u.lat.toFixed(5)}, ${u.lon.toFixed(5)}
 </div>
 `;

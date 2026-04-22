@@ -18,7 +18,26 @@ justify-content:space-around;
 
 .card{text-align:center;}
 
-#map{height:60vh;}
+#map{height:50vh;}
+
+.section{
+padding:10px;
+}
+
+.details{
+max-height:35vh;
+overflow:auto;
+}
+
+.user{
+padding:12px;
+margin-bottom:8px;
+border-radius:10px;
+background:#111827;
+}
+
+.status-in{color:#22c55e;}
+.status-out{color:#ef4444;}
 
 .popup{
 max-height:150px;
@@ -49,6 +68,11 @@ font-size:12px;
 
 <div id="map"></div>
 
+<div class="section">
+<h3>👥 Employee Status</h3>
+<div class="details" id="users"></div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -57,7 +81,7 @@ font-size:12px;
 
 // FIREBASE
 const firebaseConfig = {
-apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -80,9 +104,11 @@ markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
 let grouped = {};
+let users = {};
+
 let total=0,inCount=0,outCount=0;
 
-// 🔥 GROUP BY LOCATION (rounded)
+// 🔥 PROCESS DATA
 snapshot.forEach(doc=>{
 
 const d = doc.data();
@@ -91,29 +117,35 @@ total++;
 if(d.type==="IN") inCount++;
 if(d.type==="OUT") outCount++;
 
-// 🔥 ROUND COORDS (group same spots)
+// GROUP LOCATION
 let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
 
 if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
 
+// LATEST PER USER
+if(!users[d.name] || users[d.name].timestamp < d.timestamp){
+users[d.name] = d;
+}
+
 });
 
-// 🔥 CREATE ONE MARKER PER LOCATION
+// 🔥 MAP MARKERS (GROUPED)
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
 let lat = logs[0].lat;
 let lon = logs[0].lon;
 
-// 🔥 BUILD POPUP LIST
+// POPUP LIST
 let html = `<div class="popup">`;
 
 logs.forEach(l=>{
 html += `
 <div>
 <b>${l.name}</b><br>
-${l.type} - ${l.time}
+${l.type} - ${l.time}<br>
+<small>${l.date}</small>
 <hr>
 </div>
 `;
@@ -121,7 +153,7 @@ ${l.type} - ${l.time}
 
 html += `</div>`;
 
-// 🔥 COLOR BASED ON LAST ENTRY
+// LAST STATUS COLOR
 let last = logs[logs.length-1];
 let color = last.type==="IN" ? "green" : "red";
 
@@ -138,10 +170,29 @@ markers.push(marker);
 
 });
 
-// COUNTERS
+// 🔥 UPDATE COUNTERS
 document.getElementById("total").innerText = total;
 document.getElementById("in").innerText = inCount;
 document.getElementById("out").innerText = outCount;
+
+// 🔥 RENDER EMPLOYEE DETAILS
+document.getElementById("users").innerHTML="";
+
+Object.values(users).forEach(u=>{
+
+let statusClass = u.type==="IN" ? "status-in" : "status-out";
+
+document.getElementById("users").innerHTML += `
+<div class="user">
+<b>${u.name}</b><br>
+Status: <span class="${statusClass}">${u.type}</span><br>
+Time: ${u.time}<br>
+Date: ${u.date}<br>
+📍 Lat: ${u.lat.toFixed(5)}, Lng: ${u.lon.toFixed(5)}
+</div>
+`;
+
+});
 
 });
 

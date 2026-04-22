@@ -18,22 +18,12 @@ justify-content:space-around;
 
 .card{text-align:center;}
 
-#map{height:55vh;}
+#map{height:60vh;}
 
-.section{
-padding:10px;
-}
-
-.list{
-max-height:25vh;
+.popup{
+max-height:150px;
 overflow:auto;
-}
-
-.user{
-padding:10px;
-margin-bottom:8px;
-border-radius:8px;
-background:#111827;
+font-size:12px;
 }
 </style>
 </head>
@@ -59,11 +49,6 @@ background:#111827;
 
 <div id="map"></div>
 
-<div class="section">
-<h3>📍 Latest Status (Per Employee)</h3>
-<div class="list" id="users"></div>
-</div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -72,7 +57,7 @@ background:#111827;
 
 // FIREBASE
 const firebaseConfig = {
-  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -85,84 +70,78 @@ const map = L.map('map').setView([15.5,120.9],13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let markers = [];
+let markers=[];
 
-// 🔥 OFFSET para hindi magpatong
-function offset(lat, lon, i){
-let shift = i * 0.00003;
-return [lat + shift, lon + shift];
-}
-
-// REALTIME
 db.collection("attendance")
 .orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
-// clear old markers
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
+let grouped = {};
 let total=0,inCount=0,outCount=0;
-let users={};
-let i=0;
 
+// 🔥 GROUP BY LOCATION (rounded)
 snapshot.forEach(doc=>{
 
 const d = doc.data();
 
 total++;
-
 if(d.type==="IN") inCount++;
 if(d.type==="OUT") outCount++;
 
-// 🔥 LATEST PER USER
-if(!users[d.name] || users[d.name].timestamp < d.timestamp){
-users[d.name] = d;
-}
+// 🔥 ROUND COORDS (group same spots)
+let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
 
-// 🔥 OFFSET PARA HINDI MAGPATONG
-let [lat,lon] = offset(d.lat, d.lon, i);
+if(!grouped[key]) grouped[key]=[];
+grouped[key].push(d);
 
-let color = d.type==="IN" ? "green" : "red";
+});
+
+// 🔥 CREATE ONE MARKER PER LOCATION
+Object.keys(grouped).forEach(key=>{
+
+let logs = grouped[key];
+let lat = logs[0].lat;
+let lon = logs[0].lon;
+
+// 🔥 BUILD POPUP LIST
+let html = `<div class="popup">`;
+
+logs.forEach(l=>{
+html += `
+<div>
+<b>${l.name}</b><br>
+${l.type} - ${l.time}
+<hr>
+</div>
+`;
+});
+
+html += `</div>`;
+
+// 🔥 COLOR BASED ON LAST ENTRY
+let last = logs[logs.length-1];
+let color = last.type==="IN" ? "green" : "red";
 
 let marker = L.circleMarker([lat,lon],{
-radius:8,
+radius:12,
 color:color,
 fillColor:color,
 fillOpacity:0.9
 }).addTo(map);
 
-marker.bindPopup(`
-<b>${d.name}</b><br>
-${d.type}<br>
-${d.time}<br>
-${d.date}
-`);
+marker.bindPopup(html);
 
 markers.push(marker);
-i++;
 
 });
 
-// 🔥 UPDATE COUNTERS
+// COUNTERS
 document.getElementById("total").innerText = total;
 document.getElementById("in").innerText = inCount;
 document.getElementById("out").innerText = outCount;
-
-// 🔥 RENDER LATEST USERS
-document.getElementById("users").innerHTML="";
-
-Object.values(users).forEach(u=>{
-
-document.getElementById("users").innerHTML += `
-<div class="user">
-<b>${u.name}</b><br>
-Status: ${u.type}<br>
-Time: ${u.time}
-</div>
-`;
-
-});
 
 });
 

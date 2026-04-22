@@ -1,25 +1,51 @@
 
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>QA Dashboard</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{margin:0;font-family:Arial;background:#0b1220;color:white;}
-
-.top{
-padding:15px;
-background:#0f172a;
-display:flex;
-justify-content:space-around;
+body{
+margin:0;
+font-family:Arial;
+background:#0b1220;
+color:white;
 }
 
-.card{text-align:center;}
+/* TOP CARDS */
+.top{
+display:flex;
+gap:10px;
+padding:10px;
+background:#0f172a;
+position:sticky;
+top:0;
+z-index:1000;
+}
 
-#map{height:50vh;}
+.card{
+flex:1;
+background:#111827;
+padding:10px;
+border-radius:12px;
+text-align:center;
+}
 
+.card div{
+font-size:18px;
+font-weight:bold;
+}
+
+/* MAP */
+#map{
+height:45vh;
+border-bottom-left-radius:20px;
+border-bottom-right-radius:20px;
+}
+
+/* SECTION */
 .section{
 padding:10px;
 }
@@ -29,16 +55,19 @@ max-height:35vh;
 overflow:auto;
 }
 
+/* USER CARD */
 .user{
+background:#111827;
 padding:12px;
 margin-bottom:8px;
-border-radius:10px;
-background:#111827;
+border-radius:12px;
+font-size:14px;
 }
 
 .status-in{color:#22c55e;}
 .status-out{color:#ef4444;}
 
+/* POPUP */
 .popup{
 max-height:150px;
 overflow:auto;
@@ -52,24 +81,24 @@ font-size:12px;
 <div class="top">
 <div class="card">
 <div id="total">0</div>
-<small>Total Logs</small>
+<small>Total</small>
 </div>
 
 <div class="card">
 <div id="in">0</div>
-<small>Total IN</small>
+<small>IN</small>
 </div>
 
 <div class="card">
 <div id="out">0</div>
-<small>Total OUT</small>
+<small>OUT</small>
 </div>
 </div>
 
 <div id="map"></div>
 
 <div class="section">
-<h3>👥 Employee Status</h3>
+<h3>👥 Employees</h3>
 <div class="details" id="users"></div>
 </div>
 
@@ -79,9 +108,8 @@ font-size:12px;
 
 <script>
 
-// FIREBASE
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -89,7 +117,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// MAP
 const map = L.map('map').setView([15.5,120.9],13);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
@@ -108,7 +135,6 @@ let users = {};
 
 let total=0,inCount=0,outCount=0;
 
-// 🔥 PROCESS DATA
 snapshot.forEach(doc=>{
 
 const d = doc.data();
@@ -130,22 +156,20 @@ users[d.name] = d;
 
 });
 
-// 🔥 MAP MARKERS (GROUPED)
+// MARKERS
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
 let lat = logs[0].lat;
 let lon = logs[0].lon;
 
-// POPUP LIST
 let html = `<div class="popup">`;
 
 logs.forEach(l=>{
 html += `
 <div>
 <b>${l.name}</b><br>
-${l.type} - ${l.time}<br>
-<small>${l.date}</small>
+${l.type} - ${l.time}
 <hr>
 </div>
 `;
@@ -153,9 +177,8 @@ ${l.type} - ${l.time}<br>
 
 html += `</div>`;
 
-// LAST STATUS COLOR
 let last = logs[logs.length-1];
-let color = last.type==="IN" ? "green" : "red";
+let color = last.type==="IN" ? "#22c55e" : "#ef4444";
 
 let marker = L.circleMarker([lat,lon],{
 radius:12,
@@ -170,12 +193,12 @@ markers.push(marker);
 
 });
 
-// 🔥 UPDATE COUNTERS
+// COUNTERS
 document.getElementById("total").innerText = total;
 document.getElementById("in").innerText = inCount;
 document.getElementById("out").innerText = outCount;
 
-// 🔥 RENDER EMPLOYEE DETAILS
+// USERS LIST
 document.getElementById("users").innerHTML="";
 
 Object.values(users).forEach(u=>{
@@ -187,8 +210,7 @@ document.getElementById("users").innerHTML += `
 <b>${u.name}</b><br>
 Status: <span class="${statusClass}">${u.type}</span><br>
 Time: ${u.time}<br>
-Date: ${u.date}<br>
-📍 Lat: ${u.lat.toFixed(5)}, Lng: ${u.lon.toFixed(5)}
+📍 ${u.lat.toFixed(5)}, ${u.lon.toFixed(5)}
 </div>
 `;
 

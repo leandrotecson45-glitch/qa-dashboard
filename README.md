@@ -77,7 +77,7 @@ border-radius:6px;
 <script>
 
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -91,7 +91,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 let markers=[];
 let currentLogs=[];
 
-// SHOW DETAILS FUNCTION
+// SHOW DETAILS
 function showDetails(i){
 let l = currentLogs[i];
 
@@ -103,6 +103,7 @@ Time: ${l.time}<br>
 `;
 }
 
+// REALTIME LISTENER
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
@@ -132,7 +133,7 @@ users[d.name] = d;
 
 });
 
-// MAP
+// MAP MARKERS
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
@@ -141,6 +142,7 @@ currentLogs = logs;
 let lat = logs[0].lat;
 let lon = logs[0].lon;
 
+// POPUP UI
 let html = `<div style="font-size:13px;">`;
 
 logs.forEach((l,i)=>{
@@ -159,14 +161,31 @@ Tap a name to view details
 
 html += `</div>`;
 
+// 🔥 ARROW LABEL
 let last = logs[logs.length-1];
-let color = last.type==="IN" ? "#22c55e" : "#ef4444";
 
-let marker = L.circleMarker([lat,lon],{
-radius:12,
-color:color,
-fillColor:color,
-fillOpacity:0.9
+let iconHTML = `
+<div style="
+background:#111827;
+padding:6px 10px;
+border-radius:20px;
+font-size:12px;
+font-weight:bold;
+color:white;
+border:1px solid #333;
+">
+${last.type === "IN" ? "⬆ IN" : "⬇ OUT"}
+</div>
+`;
+
+let customIcon = L.divIcon({
+html: iconHTML,
+className: "",
+iconSize: [70,30]
+});
+
+let marker = L.marker([lat,lon],{
+icon: customIcon
 }).addTo(map);
 
 marker.bindPopup(html);
@@ -180,7 +199,7 @@ document.getElementById("total").innerText = total;
 document.getElementById("in").innerText = inCount;
 document.getElementById("out").innerText = outCount;
 
-// USERS
+// USERS LIST
 document.getElementById("users").innerHTML="";
 
 Object.values(users).forEach(u=>{

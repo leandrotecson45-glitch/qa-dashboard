@@ -9,22 +9,14 @@
 <style>
 body{margin:0;font-family:Arial;background:#0b1220;color:white;}
 
-.top{
-display:flex;
-gap:10px;
-padding:10px;
-background:#0f172a;
-}
-
-.card{
-flex:1;
-background:#111827;
-padding:10px;
-border-radius:10px;
-text-align:center;
-}
-
 #map{height:60vh;}
+
+.popup-item{
+padding:6px;
+margin-bottom:4px;
+background:#1f2937;
+border-radius:6px;
+}
 
 .section{padding:10px;}
 
@@ -39,12 +31,7 @@ border-radius:10px;
 
 <body>
 
-<div class="top">
-<div class="card"><div id="total">0</div><small>Total</small></div>
-<div class="card"><div id="in">0</div><small>IN</small></div>
-<div class="card"><div id="out">0</div><small>OUT</small></div>
-</div>
-
+<h3 style="padding:10px;">QA Dashboard</h3>
 <div id="map"></div>
 
 <div class="section">
@@ -59,7 +46,7 @@ border-radius:10px;
 <script>
 
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+   apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -71,114 +58,95 @@ const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers=[];
-let lines=[];
-
-// 📏 DISTANCE FUNCTION (KM)
-function getDistance(lat1, lon1, lat2, lon2){
-const R = 6371;
-const dLat = (lat2-lat1) * Math.PI/180;
-const dLon = (lon2-lon1) * Math.PI/180;
-
-const a =
-Math.sin(dLat/2)*Math.sin(dLat/2) +
-Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180) *
-Math.sin(dLon/2)*Math.sin(dLon/2);
-
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-return R * c;
-}
 
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
 markers.forEach(m=>map.removeLayer(m));
-lines.forEach(l=>map.removeLayer(l));
 markers=[];
-lines=[];
 
+let grouped = {};
 let users = {};
-let paths = {};
-let total=0,inCount=0,outCount=0;
 
-// PROCESS DATA
+// GROUP BY LOCATION
 snapshot.forEach(doc=>{
-
 const d = doc.data();
 
-total++;
-if(d.type==="IN") inCount++;
-if(d.type==="OUT") outCount++;
+let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
+if(!grouped[key]) grouped[key]=[];
+grouped[key].push(d);
 
-if(!paths[d.name]) paths[d.name]=[];
-paths[d.name].push(d);
-
+// latest user status
 if(!users[d.name] || users[d.name].timestamp < d.timestamp){
 users[d.name] = d;
 }
 
 });
 
-// DRAW PER USER
-Object.keys(paths).forEach(name=>{
+// CREATE ONE MARKER PER LOCATION
+Object.keys(grouped).forEach(key=>{
 
-let logs = paths[name];
+let logs = grouped[key];
+let lat = logs[0].lat;
+let lon = logs[0].lon;
 
-// SORT BY TIME
-logs.sort((a,b)=>a.timestamp - b.timestamp);
+// 👉 POPUP LIST (LAHAT LALABAS)
+let html = `<div style="font-size:13px;">`;
 
-// 📏 CALCULATE KM
-let totalKM = 0;
+logs.forEach(l=>{
+html += `
+<div class="popup-item">
+<b>${l.name}</b><br>
+${l.type} - ${l.time}
+</div>
+`;
+});
 
-for(let i=1;i<logs.length;i++){
-totalKM += getDistance(
-logs[i-1].lat, logs[i-1].lon,
-logs[i].lat, logs[i].lon
-);
-}
+html += `</div>`;
 
-// 🟢 START
-let start = logs[0];
-let startMarker = L.marker([start.lat,start.lon])
-.addTo(map)
-.bindPopup(`<b>${name}</b><br>🟢 START<br>${start.time}`);
-
-markers.push(startMarker);
-
-// 🔴 END
-let end = logs[logs.length-1];
-let endMarker = L.marker([end.lat,end.lon])
-.addTo(map)
-.bindPopup(`<b>${name}</b><br>🔴 END<br>${end.time}`);
-
-markers.push(endMarker);
-
-// 🔵 ROUTE
-let coords = logs.map(l=>[l.lat,l.lon]);
-
-if(coords.length>1){
-let line = L.polyline(coords,{
-color:"#38bdf8",
-weight:4
-}).addTo(map);
-
-lines.push(line);
-}
-
-// USERS LIST
-document.getElementById("users").innerHTML += `
-<div class="user">
-<b>${name}</b><br>
-📏 KM: ${totalKM.toFixed(2)}<br>
-Last: ${end.type} - ${end.time}
+// 👉 LABEL = COUNT
+let iconHTML = `
+<div style="
+background:#111827;
+padding:6px 10px;
+border-radius:20px;
+font-size:12px;
+font-weight:bold;
+color:white;
+border:1px solid #333;
+">
+📍 ${logs.length}
 </div>
 `;
 
+let customIcon = L.divIcon({
+html: iconHTML,
+className: "",
+iconSize: [60,30]
 });
 
-// STATS
-document.getElementById("total").innerText = total;
-document.getElementById("in").innerText = inCount;
-document.getElementById("out").innerText = outCount;
+let marker = L.marker([lat,lon],{
+icon: customIcon
+}).addTo(map);
+
+marker.bindPopup(html);
+
+markers.push(marker);
+
+});
+
+// USERS LIST
+document.getElementById("users").innerHTML="";
+
+Object.values(users).forEach(u=>{
+document.getElementById("users").innerHTML += `
+<div class="user">
+<b>${u.name}</b><br>
+${u.type} - ${u.time}<br>
+📍 ${u.lat.toFixed(5)}, ${u.lon.toFixed(5)}
+</div>
+`;
+});
 
 });
 

@@ -8,67 +8,14 @@
 
 <style>
 body{margin:0;font-family:Arial;background:#0b1220;color:white;}
-
-.top{
-display:flex;
-gap:10px;
-padding:10px;
-background:#0f172a;
-}
-
-.card{
-flex:1;
-background:#111827;
-padding:10px;
-border-radius:10px;
-text-align:center;
-}
-
-#map{height:50vh;}
-
-.section{padding:10px;}
-
-.user{
-background:#111827;
-padding:10px;
-margin-bottom:8px;
-border-radius:10px;
-}
-
-.status-in{color:#22c55e;}
-.status-out{color:#ef4444;}
-
-.item{
-padding:6px;
-margin-bottom:4px;
-background:#1f2937;
-border-radius:6px;
-cursor:pointer;
-}
-
-.details{
-margin-top:6px;
-padding:6px;
-background:#020617;
-border-radius:6px;
-}
+#map{height:60vh;}
 </style>
 </head>
 
 <body>
 
-<div class="top">
-<div class="card"><div id="total">0</div><small>Total</small></div>
-<div class="card"><div id="in">0</div><small>IN</small></div>
-<div class="card"><div id="out">0</div><small>OUT</small></div>
-</div>
-
+<h3 style="padding:10px;">QA Dashboard</h3>
 <div id="map"></div>
-
-<div class="section">
-<h3>Employees</h3>
-<div id="users"></div>
-</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -76,8 +23,9 @@ border-radius:6px;
 
 <script>
 
+// 🔥 SAME CONFIG DAPAT SA FIELD
 const firebaseConfig = {
-  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -86,134 +34,35 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const map = L.map('map').setView([15.5,120.9],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let markers=[];
-let currentLogs=[];
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+.addTo(map);
 
-// SHOW DETAILS
-function showDetails(i){
-let l = currentLogs[i];
-
-document.getElementById("details").innerHTML = `
-<b>${l.name}</b><br>
-Type: ${l.type}<br>
-Time: ${l.time}<br>
-📍 ${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}
-`;
-}
-
-// REALTIME LISTENER
-db.collection("attendance").orderBy("timestamp")
+db.collection("attendance")
 .onSnapshot(snapshot=>{
 
-markers.forEach(m=>map.removeLayer(m));
-markers=[];
+console.log("DATA RECEIVED:", snapshot.size);
 
-let grouped = {};
-let users = {};
+// CLEAR MAP
+map.eachLayer(layer=>{
+if(layer instanceof L.Marker){
+map.removeLayer(layer);
+}
+});
 
-let total=0,inCount=0,outCount=0;
-
+// ADD MARKERS
 snapshot.forEach(doc=>{
 
-const d = doc.data();
+let d = doc.data();
 
-total++;
-if(d.type==="IN") inCount++;
-if(d.type==="OUT") outCount++;
+console.log(d);
 
-let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
-if(!grouped[key]) grouped[key]=[];
-grouped[key].push(d);
-
-if(!users[d.name] || users[d.name].timestamp < d.timestamp){
-users[d.name] = d;
-}
-
-});
-
-// MAP MARKERS
-Object.keys(grouped).forEach(key=>{
-
-let logs = grouped[key];
-currentLogs = logs;
-
-let lat = logs[0].lat;
-let lon = logs[0].lon;
-
-// POPUP UI
-let html = `<div style="font-size:13px;">`;
-
-logs.forEach((l,i)=>{
-html += `
-<div class="item" onclick="showDetails(${i})">
-<b>${l.name}</b> - ${l.type}
-</div>
-`;
-});
-
-html += `
-<div id="details" class="details">
-Tap a name to view details
-</div>
-`;
-
-html += `</div>`;
-
-// 🔥 ARROW LABEL
-let last = logs[logs.length-1];
-
-let iconHTML = `
-<div style="
-background:#111827;
-padding:6px 10px;
-border-radius:20px;
-font-size:12px;
-font-weight:bold;
-color:white;
-border:1px solid #333;
-">
-${last.type === "IN" ? "⬆ IN" : "⬇ OUT"}
-</div>
-`;
-
-let customIcon = L.divIcon({
-html: iconHTML,
-className: "",
-iconSize: [70,30]
-});
-
-let marker = L.marker([lat,lon],{
-icon: customIcon
-}).addTo(map);
-
-marker.bindPopup(html);
-
-markers.push(marker);
-
-});
-
-// STATS
-document.getElementById("total").innerText = total;
-document.getElementById("in").innerText = inCount;
-document.getElementById("out").innerText = outCount;
-
-// USERS LIST
-document.getElementById("users").innerHTML="";
-
-Object.values(users).forEach(u=>{
-
-let statusClass = u.type==="IN" ? "status-in" : "status-out";
-
-document.getElementById("users").innerHTML += `
-<div class="user">
-<b>${u.name}</b><br>
-Status: <span class="${statusClass}">${u.type}</span><br>
-Time: ${u.time}<br>
-📍 ${u.lat.toFixed(5)}, ${u.lon.toFixed(5)}
-</div>
-`;
+L.marker([d.lat, d.lon]).addTo(map)
+.bindPopup(`
+<b>${d.name}</b><br>
+${d.type}<br>
+${d.time}
+`);
 
 });
 

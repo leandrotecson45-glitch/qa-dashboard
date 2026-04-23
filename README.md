@@ -26,7 +26,7 @@ border:none;
 .popup-item{
 padding:6px;
 margin-bottom:4px;
-background:#1f2937;
+background:WHITE;
 border-radius:6px;
 }
 

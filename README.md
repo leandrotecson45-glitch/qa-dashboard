@@ -14,7 +14,7 @@ body{margin:0;font-family:Arial;background:#0b1220;color:white;}
 .popup-item{
 padding:6px;
 margin-bottom:4px;
-background:#1f2937;
+background:white;
 border-radius:6px;
 }
 
@@ -107,7 +107,7 @@ html += `</div>`;
 // 👉 LABEL = COUNT
 let iconHTML = `
 <div style="
-background:#111827;
+background:darkgreen;
 padding:6px 10px;
 border-radius:20px;
 font-size:12px;

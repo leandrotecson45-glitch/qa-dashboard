@@ -34,21 +34,6 @@ padding:10px;
 margin-bottom:8px;
 border-radius:10px;
 }
-
-.item{
-padding:6px;
-margin-bottom:4px;
-background:#1f2937;
-border-radius:6px;
-cursor:pointer;
-}
-
-.details{
-margin-top:6px;
-padding:6px;
-background:#020617;
-border-radius:6px;
-}
 </style>
 </head>
 
@@ -74,7 +59,7 @@ border-radius:6px;
 <script>
 
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -86,47 +71,74 @@ const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers=[];
+let lines=[];
 
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
+// CLEAR
 markers.forEach(m=>map.removeLayer(m));
+lines.forEach(l=>map.removeLayer(l));
 markers=[];
+lines=[];
 
 let users = {};
+let paths = {};
+
 let total=0,inCount=0,outCount=0;
 
-let grouped = {};
-
-// GROUP DATA
+// PROCESS DATA
 snapshot.forEach(doc=>{
+
 const d = doc.data();
 
 total++;
 if(d.type==="IN") inCount++;
 if(d.type==="OUT") outCount++;
 
-let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
-if(!grouped[key]) grouped[key]=[];
-grouped[key].push(d);
+// GROUP PATH PER USER
+if(!paths[d.name]) paths[d.name]=[];
+paths[d.name].push([d.lat, d.lon]);
 
+// LATEST STATUS
 if(!users[d.name] || users[d.name].timestamp < d.timestamp){
 users[d.name] = d;
 }
+
 });
 
-// 🔥 CREATE MARKERS WITH OFFSET
-Object.keys(grouped).forEach(key=>{
+// DRAW ROUTES
+Object.keys(paths).forEach(name=>{
 
-let logs = grouped[key];
+let coords = paths[name];
 
-logs.forEach((l,i)=>{
+if(coords.length > 1){
 
-// 👉 OFFSET PARA HINDI MAGPATONG
-let offsetLat = l.lat + (i * 0.00005);
-let offsetLon = l.lon + (i * 0.00005);
+let line = L.polyline(coords,{
+color:"#38bdf8",
+weight:4
+}).addTo(map);
 
-// 👉 ARROW LABEL
+lines.push(line);
+
+}
+
+});
+
+// DRAW MARKERS WITH OFFSET
+Object.keys(paths).forEach(name=>{
+
+let coords = paths[name];
+
+coords.forEach((c,i)=>{
+
+let lat = c[0] + (i * 0.00005);
+let lon = c[1] + (i * 0.00005);
+
+// GET TYPE (approx from order)
+let type = "IN";
+if(i > 0) type = "OUT";
+
 let iconHTML = `
 <div style="
 background:#111827;
@@ -137,7 +149,7 @@ font-weight:bold;
 color:white;
 border:1px solid #333;
 ">
-${l.type === "IN" ? "⬆ IN" : "⬇ OUT"}
+${type === "IN" ? "⬆ IN" : "⬇ OUT"}
 </div>
 `;
 
@@ -147,19 +159,9 @@ className: "",
 iconSize: [70,30]
 });
 
-// 👉 POPUP
-let html = `
-<b>${l.name}</b><br>
-${l.type}<br>
-${l.time}<br>
-📍 ${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}
-`;
-
-let marker = L.marker([offsetLat,offsetLon],{
+let marker = L.marker([lat,lon],{
 icon: customIcon
 }).addTo(map);
-
-marker.bindPopup(html);
 
 markers.push(marker);
 

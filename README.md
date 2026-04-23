@@ -7,12 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{
-margin:0;
-font-family:Arial;
-background:#0b1220;
-color:white;
-}
+body{margin:0;font-family:Arial;background:#0b1220;color:white;}
 
 .top{
 display:flex;
@@ -28,21 +23,31 @@ border-radius:8px;
 border:none;
 }
 
-/* MAP */
-#map{
-height:55vh;
+/* SUMMARY */
+.summary{
+display:flex;
+gap:10px;
+padding:10px;
+overflow-x:auto;
 }
 
-/* POPUP DESIGN */
+.sum-card{
+background:#111827;
+padding:10px;
+border-radius:10px;
+min-width:120px;
+text-align:center;
+font-size:13px;
+}
+
+/* MAP */
+#map{height:55vh;}
+
+/* POPUP */
 .popup-box{
 font-size:13px;
 max-height:240px;
 overflow-y:auto;
-}
-
-.popup-header{
-font-weight:bold;
-margin-bottom:8px;
 }
 
 .popup-item{
@@ -52,24 +57,16 @@ background:lightgray;
 border-radius:10px;
 }
 
-.popup-top{
-display:flex;
-justify-content:space-between;
-margin-bottom:5px;
-}
-
 .tag{
 font-size:11px;
 padding:3px 8px;
 border-radius:8px;
-font-weight:bold;
 }
 
 .inTag{background:#22c55e;}
 .outTag{background:#ef4444;}
 .autoTag{background:#3b82f6;}
 
-/* PURPOSE STYLE */
 .purpose{
 margin-top:6px;
 padding:6px;
@@ -84,13 +81,15 @@ font-size:12px;
 
 <body>
 
+<!-- FILTER -->
 <div class="top">
-<select id="employee">
-<option value="ALL">All Employees</option>
-</select>
-
+<select id="employee"><option value="ALL">All Employees</option></select>
 <input type="date" id="date">
+<select id="purposeFilter"><option value="ALL">All Purpose</option></select>
 </div>
+
+<!-- SUMMARY -->
+<div class="summary" id="summary"></div>
 
 <div id="map"></div>
 
@@ -114,12 +113,13 @@ const db = firebase.firestore();
 const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let markers=[];
 let allData=[];
+let markers=[];
 
-// FILTERS
-document.getElementById("employee").onchange=render;
-document.getElementById("date").onchange=render;
+// FILTER EVENTS
+["employee","date","purposeFilter"].forEach(id=>{
+document.getElementById(id).onchange = render;
+});
 
 // REALTIME
 db.collection("attendance").orderBy("timestamp")
@@ -127,19 +127,24 @@ db.collection("attendance").orderBy("timestamp")
 
 allData=[];
 let names=new Set();
+let purposes=new Set();
 
 snapshot.forEach(doc=>{
 let d=doc.data();
 allData.push(d);
 names.add(d.name);
+if(d.purpose) purposes.add(d.purpose);
 });
 
-// EMPLOYEE LIST
-let select=document.getElementById("employee");
-select.innerHTML=`<option value="ALL">All Employees</option>`;
-names.forEach(n=>{
-select.innerHTML+=`<option value="${n}">${n}</option>`;
-});
+// EMPLOYEE
+let emp=document.getElementById("employee");
+emp.innerHTML=`<option value="ALL">All Employees</option>`;
+names.forEach(n=>emp.innerHTML+=`<option>${n}</option>`);
+
+// PURPOSE
+let pf=document.getElementById("purposeFilter");
+pf.innerHTML=`<option value="ALL">All Purpose</option>`;
+purposes.forEach(p=>pf.innerHTML+=`<option>${p}</option>`);
 
 render();
 
@@ -152,21 +157,46 @@ markers=[];
 
 let emp=document.getElementById("employee").value;
 let date=document.getElementById("date").value;
+let purposeF=document.getElementById("purposeFilter").value;
 
-let filtered=allData.filter(d=>{
+// FILTER
+let filtered = allData.filter(d=>{
 
 let matchEmp = emp==="ALL" || d.name===emp;
 
 let matchDate = true;
 if(date){
-let dDate = new Date(d.timestamp).toISOString().split("T")[0];
-matchDate = dDate===date;
+let dDate=new Date(d.timestamp).toISOString().split("T")[0];
+matchDate=dDate===date;
 }
 
-return matchEmp && matchDate;
+let matchPurpose = purposeF==="ALL" || d.purpose===purposeF;
+
+return matchEmp && matchDate && matchPurpose;
 });
 
-// GROUP
+// 🔥 SUMMARY PURPOSE COUNT
+let summaryBox=document.getElementById("summary");
+summaryBox.innerHTML="";
+
+let countMap={};
+
+filtered.forEach(d=>{
+let p=d.purpose || "No Purpose";
+if(!countMap[p]) countMap[p]=0;
+countMap[p]++;
+});
+
+Object.keys(countMap).forEach(p=>{
+summaryBox.innerHTML+=`
+<div class="sum-card">
+<b>${countMap[p]}</b><br>
+${p}
+</div>
+`;
+});
+
+// GROUP LOCATION
 let grouped={};
 
 filtered.forEach(d=>{
@@ -182,12 +212,9 @@ let logs=grouped[key];
 let lat=logs[0].lat;
 let lon=logs[0].lon;
 
-// SORT LATEST
 logs.sort((a,b)=>b.timestamp-a.timestamp);
 
-// POPUP
 let html=`<div class="popup-box">`;
-html+=`<div class="popup-header">📍 ${logs.length} Logs</div>`;
 
 logs.forEach(l=>{
 
@@ -197,18 +224,10 @@ if(l.type==="OUT") tagClass="outTag";
 
 html+=`
 <div class="popup-item">
-
-<div class="popup-top">
-<b>${l.name}</b>
-<div class="tag ${tagClass}">${l.type}</div>
-</div>
-
+<b>${l.name}</b><br>
 <small>${l.time}</small>
-
-<div class="purpose">
-📌 ${l.purpose || "No purpose"}
-</div>
-
+<div class="tag ${tagClass}">${l.type}</div>
+<div class="purpose">📌 ${l.purpose || "No purpose"}</div>
 </div>
 `;
 
@@ -216,22 +235,13 @@ html+=`
 
 html+=`</div>`;
 
-// PIN LABEL
+// PIN
 let iconHTML=`
-<div style="
-background:#111827;
-padding:6px 10px;
-border-radius:20px;
-font-size:12px;">
+<div style="background:#111827;padding:6px 10px;border-radius:20px;font-size:12px;">
 📍 ${logs.length}
-</div>
-`;
+</div>`;
 
-let icon=L.divIcon({
-html:iconHTML,
-className:"",
-iconSize:[60,30]
-});
+let icon=L.divIcon({html:iconHTML,className:"",iconSize:[60,30]});
 
 let marker=L.marker([lat,lon],{icon})
 .addTo(map)

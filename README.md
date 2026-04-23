@@ -7,54 +7,50 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
-body{margin:0;font-family:Arial;background:#0b1220;color:white;}
-
-.top{
-display:flex;
-gap:10px;
-padding:10px;
-background:#0f172a;
-flex-wrap:wrap;
-}
-
-select,input{
-padding:8px;
-border-radius:8px;
-border:none;
-}
-
-/* SUMMARY */
-.summary{
-display:flex;
-gap:10px;
-padding:10px;
-overflow-x:auto;
-}
-
-.sum-card{
-background:#111827;
-padding:10px;
-border-radius:10px;
-min-width:120px;
-text-align:center;
-font-size:13px;
+body{
+margin:0;
+font-family:system-ui,Arial;
+background:#0b1220;
+color:white;
 }
 
 /* MAP */
-#map{height:55vh;}
+#map{
+height:60vh;
+}
+
+/* CHART CONTAINER */
+.charts{
+padding:10px;
+}
+
+.chart-card{
+background:#111827;
+padding:10px;
+border-radius:12px;
+margin-bottom:10px;
+}
+
+/* PIN */
+.pin{
+background:#111827;
+padding:6px 10px;
+border-radius:20px;
+font-size:12px;
+color:white;
+}
 
 /* POPUP */
 .popup-box{
-font-size:13px;
-max-height:240px;
+max-height:250px;
 overflow-y:auto;
 }
 
-.popup-item{
-padding:10px;
-margin-bottom:8px;
+.card{
 background:lightgray;
+padding:10px;
 border-radius:10px;
+margin-bottom:8px;
 }
 
 .tag{
@@ -68,7 +64,7 @@ border-radius:8px;
 .autoTag{background:#3b82f6;}
 
 .purpose{
-margin-top:6px;
+margin-top:5px;
 padding:6px;
 background:white;
 border-left:3px solid #3b82f6;
@@ -81,18 +77,19 @@ font-size:12px;
 
 <body>
 
-<!-- FILTER -->
-<div class="top">
-<select id="employee"><option value="ALL">All Employees</option></select>
-<input type="date" id="date">
-<select id="purposeFilter"><option value="ALL">All Purpose</option></select>
-</div>
-
-<!-- SUMMARY -->
-<div class="summary" id="summary"></div>
-
 <div id="map"></div>
 
+<div class="charts">
+<div class="chart-card">
+<canvas id="typeChart"></canvas>
+</div>
+
+<div class="chart-card">
+<canvas id="purposeChart"></canvas>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -107,99 +104,29 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db=firebase.firestore();
 
 // MAP
-const map = L.map('map').setView([15.5,120.9],13);
+const map=L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-let allData=[];
 let markers=[];
-
-// FILTER EVENTS
-["employee","date","purposeFilter"].forEach(id=>{
-document.getElementById(id).onchange = render;
-});
+let chart1, chart2;
 
 // REALTIME
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
-allData=[];
-let names=new Set();
-let purposes=new Set();
-
-snapshot.forEach(doc=>{
-let d=doc.data();
-allData.push(d);
-names.add(d.name);
-if(d.purpose) purposes.add(d.purpose);
-});
-
-// EMPLOYEE
-let emp=document.getElementById("employee");
-emp.innerHTML=`<option value="ALL">All Employees</option>`;
-names.forEach(n=>emp.innerHTML+=`<option>${n}</option>`);
-
-// PURPOSE
-let pf=document.getElementById("purposeFilter");
-pf.innerHTML=`<option value="ALL">All Purpose</option>`;
-purposes.forEach(p=>pf.innerHTML+=`<option>${p}</option>`);
-
-render();
-
-});
-
-function render(){
-
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
-let emp=document.getElementById("employee").value;
-let date=document.getElementById("date").value;
-let purposeF=document.getElementById("purposeFilter").value;
-
-// FILTER
-let filtered = allData.filter(d=>{
-
-let matchEmp = emp==="ALL" || d.name===emp;
-
-let matchDate = true;
-if(date){
-let dDate=new Date(d.timestamp).toISOString().split("T")[0];
-matchDate=dDate===date;
-}
-
-let matchPurpose = purposeF==="ALL" || d.purpose===purposeF;
-
-return matchEmp && matchDate && matchPurpose;
-});
-
-// 🔥 SUMMARY PURPOSE COUNT
-let summaryBox=document.getElementById("summary");
-summaryBox.innerHTML="";
-
-let countMap={};
-
-filtered.forEach(d=>{
-let p=d.purpose || "No Purpose";
-if(!countMap[p]) countMap[p]=0;
-countMap[p]++;
-});
-
-Object.keys(countMap).forEach(p=>{
-summaryBox.innerHTML+=`
-<div class="sum-card">
-<b>${countMap[p]}</b><br>
-${p}
-</div>
-`;
-});
+let allData=[];
+snapshot.forEach(doc=>allData.push(doc.data()));
 
 // GROUP LOCATION
 let grouped={};
 
-filtered.forEach(d=>{
+allData.forEach(d=>{
 let key=d.lat.toFixed(5)+","+d.lon.toFixed(5);
 if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
@@ -218,16 +145,17 @@ let html=`<div class="popup-box">`;
 
 logs.forEach(l=>{
 
-let tagClass="autoTag";
-if(l.type==="IN") tagClass="inTag";
-if(l.type==="OUT") tagClass="outTag";
+let tag="autoTag";
+if(l.type==="IN") tag="inTag";
+if(l.type==="OUT") tag="outTag";
 
 html+=`
-<div class="popup-item">
-<b>${l.name}</b><br>
+<div class="card">
+<b>${l.name}</b>
+<div class="tag ${tag}">${l.type}</div>
+<br>
 <small>${l.time}</small>
-<div class="tag ${tagClass}">${l.type}</div>
-<div class="purpose">📌 ${l.purpose || "No purpose"}</div>
+<div class="purpose">📌 ${l.purpose||"No purpose"}</div>
 </div>
 `;
 
@@ -235,13 +163,11 @@ html+=`
 
 html+=`</div>`;
 
-// PIN
-let iconHTML=`
-<div style="background:#111827;padding:6px 10px;border-radius:20px;font-size:12px;">
-📍 ${logs.length}
-</div>`;
-
-let icon=L.divIcon({html:iconHTML,className:"",iconSize:[60,30]});
+let icon=L.divIcon({
+html:`<div class="pin">📍 ${logs.length}</div>`,
+className:"",
+iconSize:[60,30]
+});
 
 let marker=L.marker([lat,lon],{icon})
 .addTo(map)
@@ -251,7 +177,49 @@ markers.push(marker);
 
 });
 
+// 📊 TYPE COUNT
+let typeCount={IN:0,OUT:0,AUTO:0};
+
+allData.forEach(d=>{
+if(typeCount[d.type]!==undefined) typeCount[d.type]++;
+});
+
+// DRAW BAR CHART
+if(chart1) chart1.destroy();
+
+chart1=new Chart(document.getElementById("typeChart"),{
+type:"bar",
+data:{
+labels:["IN","OUT","AUTO"],
+datasets:[{data:[
+typeCount.IN,
+typeCount.OUT,
+typeCount.AUTO
+]}]
 }
+});
+
+// 📊 PURPOSE COUNT
+let purposeCount={};
+
+allData.forEach(d=>{
+let p=d.purpose||"None";
+if(!purposeCount[p]) purposeCount[p]=0;
+purposeCount[p]++;
+});
+
+// DRAW PIE CHART
+if(chart2) chart2.destroy();
+
+chart2=new Chart(document.getElementById("purposeChart"),{
+type:"pie",
+data:{
+labels:Object.keys(purposeCount),
+datasets:[{data:Object.values(purposeCount)}]
+}
+});
+
+});
 
 </script>
 

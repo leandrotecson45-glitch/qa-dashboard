@@ -102,9 +102,9 @@ font-size:12px;
 
 // FIREBASE
 const firebaseConfig = {
-  apiKey: "PASTE",
-  authDomain: "PASTE.firebaseapp.com",
-  projectId: "PASTE"
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+  authDomain: "attendance1-697b2.firebaseapp.com",
+  projectId: "attendance1-697b2"
 };
 
 firebase.initializeApp(firebaseConfig);

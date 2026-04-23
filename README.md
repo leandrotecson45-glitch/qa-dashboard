@@ -73,7 +73,7 @@ font-weight:bold;
 .purpose{
 margin-top:6px;
 padding:6px;
-background:#111827;
+background:white;
 border-left:3px solid #3b82f6;
 border-radius:6px;
 font-size:12px;

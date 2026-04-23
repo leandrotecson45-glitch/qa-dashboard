@@ -64,7 +64,7 @@ margin-bottom:8px;
 .popup-item{
 padding:10px;
 margin-bottom:6px;
-background:#1f2937;
+background:lightgray;
 border-radius:10px;
 display:flex;
 justify-content:space-between;

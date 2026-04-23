@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,10 +11,22 @@ body{margin:0;font-family:Arial;background:#0b1220;color:white;}
 
 #map{height:60vh;}
 
+.top{
+padding:10px;
+background:#0f172a;
+}
+
+select{
+width:100%;
+padding:10px;
+border-radius:10px;
+border:none;
+}
+
 .popup-item{
 padding:6px;
 margin-bottom:4px;
-background:white;
+background:#1f2937;
 border-radius:6px;
 }
 
@@ -31,7 +43,12 @@ border-radius:10px;
 
 <body>
 
-<h3 style="padding:10px;">QA Dashboard</h3>
+<div class="top">
+<select id="filter">
+<option value="ALL">All Employees</option>
+</select>
+</div>
+
 <div id="map"></div>
 
 <div class="section">
@@ -46,7 +63,7 @@ border-radius:10px;
 <script>
 
 const firebaseConfig = {
-   apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -58,39 +75,75 @@ const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers=[];
+let allData=[];
+let namesSet = new Set();
 
+// 🔥 FILTER CHANGE
+document.getElementById("filter").addEventListener("change",()=>{
+renderMap();
+});
+
+// 🔥 REALTIME
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
+
+allData=[];
+namesSet.clear();
+
+snapshot.forEach(doc=>{
+let d = doc.data();
+allData.push(d);
+namesSet.add(d.name);
+});
+
+// UPDATE DROPDOWN
+let select = document.getElementById("filter");
+select.innerHTML = `<option value="ALL">All Employees</option>`;
+
+namesSet.forEach(name=>{
+select.innerHTML += `<option value="${name}">${name}</option>`;
+});
+
+renderMap();
+
+});
+
+function renderMap(){
 
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
+let filter = document.getElementById("filter").value;
+
 let grouped = {};
 let users = {};
 
+// FILTER DATA
+let filtered = allData.filter(d=>{
+return filter === "ALL" || d.name === filter;
+});
+
 // GROUP BY LOCATION
-snapshot.forEach(doc=>{
-const d = doc.data();
+filtered.forEach(d=>{
 
 let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
 if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
 
-// latest user status
 if(!users[d.name] || users[d.name].timestamp < d.timestamp){
 users[d.name] = d;
 }
 
 });
 
-// CREATE ONE MARKER PER LOCATION
+// CREATE MARKERS
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
 let lat = logs[0].lat;
 let lon = logs[0].lon;
 
-// 👉 POPUP LIST (LAHAT LALABAS)
+// POPUP
 let html = `<div style="font-size:13px;">`;
 
 logs.forEach(l=>{
@@ -104,10 +157,10 @@ ${l.type} - ${l.time}
 
 html += `</div>`;
 
-// 👉 LABEL = COUNT
+// LABEL
 let iconHTML = `
 <div style="
-background:darkgreen;
+background:${filter==="ALL"?"#111827":"#2563eb"};
 padding:6px 10px;
 border-radius:20px;
 font-size:12px;
@@ -148,7 +201,7 @@ ${u.type} - ${u.time}<br>
 `;
 });
 
-});
+}
 
 </script>
 

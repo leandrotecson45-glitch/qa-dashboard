@@ -10,10 +10,10 @@
 body{margin:0;font-family:Arial;background:#0b1220;color:white;}
 
 .top{
-padding:10px;
-background:#0f172a;
 display:flex;
 gap:10px;
+padding:10px;
+background:#0f172a;
 }
 
 .card{
@@ -33,7 +33,6 @@ background:#111827;
 padding:10px;
 margin-bottom:8px;
 border-radius:10px;
-font-size:14px;
 }
 
 .status-in{color:#22c55e;}
@@ -69,7 +68,7 @@ font-size:12px;
 <script>
 
 const firebaseConfig = {
-apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -93,7 +92,6 @@ let users = {};
 
 let total=0,inCount=0,outCount=0;
 
-// PROCESS
 snapshot.forEach(doc=>{
 
 const d = doc.data();
@@ -102,19 +100,17 @@ total++;
 if(d.type==="IN") inCount++;
 if(d.type==="OUT") outCount++;
 
-// GROUP LOCATION
 let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
 if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
 
-// LATEST PER USER
 if(!users[d.name] || users[d.name].timestamp < d.timestamp){
 users[d.name] = d;
 }
 
 });
 
-// MAP GROUPED PINS
+// MAP
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
@@ -124,15 +120,7 @@ let lon = logs[0].lon;
 let html = `<div class="popup">`;
 
 logs.forEach(l=>{
-html += `
-<div>
-<b>${l.name}</b><br>
-${l.type} - ${l.time}<br>
-KM: ${l.km.toFixed(2)}<br>
-${l.photo ? `<img src="${l.photo}" width="100%">` : ""}
-<hr>
-</div>
-`;
+html += `<b>${l.name}</b><br>${l.type} - ${l.time}<br><hr>`;
 });
 
 html += `</div>`;
@@ -170,7 +158,6 @@ document.getElementById("users").innerHTML += `
 <b>${u.name}</b><br>
 Status: <span class="${statusClass}">${u.type}</span><br>
 Time: ${u.time}<br>
-KM (last): ${u.km.toFixed(2)}<br>
 📍 ${u.lat.toFixed(5)}, ${u.lon.toFixed(5)}
 </div>
 `;

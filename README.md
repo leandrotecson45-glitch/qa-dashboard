@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,10 +38,19 @@ border-radius:10px;
 .status-in{color:#22c55e;}
 .status-out{color:#ef4444;}
 
-.popup{
-max-height:150px;
-overflow:auto;
-font-size:12px;
+.item{
+padding:6px;
+margin-bottom:4px;
+background:#1f2937;
+border-radius:6px;
+cursor:pointer;
+}
+
+.details{
+margin-top:6px;
+padding:6px;
+background:#020617;
+border-radius:6px;
 }
 </style>
 </head>
@@ -80,6 +89,19 @@ const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers=[];
+let currentLogs=[];
+
+// SHOW DETAILS FUNCTION
+function showDetails(i){
+let l = currentLogs[i];
+
+document.getElementById("details").innerHTML = `
+<b>${l.name}</b><br>
+Type: ${l.type}<br>
+Time: ${l.time}<br>
+📍 ${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}
+`;
+}
 
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
@@ -114,14 +136,26 @@ users[d.name] = d;
 Object.keys(grouped).forEach(key=>{
 
 let logs = grouped[key];
+currentLogs = logs;
+
 let lat = logs[0].lat;
 let lon = logs[0].lon;
 
-let html = `<div class="popup">`;
+let html = `<div style="font-size:13px;">`;
 
-logs.forEach(l=>{
-html += `<b>${l.name}</b><br>${l.type} - ${l.time}<br><hr>`;
+logs.forEach((l,i)=>{
+html += `
+<div class="item" onclick="showDetails(${i})">
+<b>${l.name}</b> - ${l.type}
+</div>
+`;
 });
+
+html += `
+<div id="details" class="details">
+Tap a name to view details
+</div>
+`;
 
 html += `</div>`;
 

@@ -14,11 +14,42 @@ background:#0b1220;
 color:white;
 }
 
-#map{
-height:60vh;
+/* TOP BAR */
+.top{
+display:flex;
+gap:10px;
+padding:10px;
+background:#0f172a;
+flex-wrap:wrap;
 }
 
-/* POPUP DESIGN */
+select,input{
+padding:8px;
+border-radius:8px;
+border:none;
+}
+
+/* STATS */
+.stats{
+display:flex;
+gap:10px;
+padding:10px;
+}
+
+.card{
+flex:1;
+background:#111827;
+padding:10px;
+border-radius:10px;
+text-align:center;
+}
+
+/* MAP */
+#map{
+height:55vh;
+}
+
+/* POPUP */
 .popup-box{
 font-size:13px;
 max-height:220px;
@@ -28,7 +59,6 @@ overflow-y:auto;
 .popup-header{
 font-weight:bold;
 margin-bottom:8px;
-font-size:14px;
 }
 
 .popup-item{
@@ -38,18 +68,12 @@ background:#1f2937;
 border-radius:10px;
 display:flex;
 justify-content:space-between;
-align-items:center;
-}
-
-.popup-left{
-line-height:1.3;
 }
 
 .tag{
 font-size:11px;
 padding:3px 8px;
 border-radius:8px;
-font-weight:bold;
 }
 
 .inTag{background:#22c55e;}
@@ -61,7 +85,22 @@ font-weight:bold;
 
 <body>
 
-<h3 style="padding:10px;">QA Dashboard</h3>
+<!-- FILTERS -->
+<div class="top">
+<select id="employee">
+<option value="ALL">All Employees</option>
+</select>
+
+<input type="date" id="date">
+</div>
+
+<!-- STATS -->
+<div class="stats">
+<div class="card"><div id="total">0</div><small>Total</small></div>
+<div class="card"><div id="in">0</div><small>IN</small></div>
+<div class="card"><div id="out">0</div><small>OUT</small></div>
+</div>
+
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -85,21 +124,72 @@ const map = L.map('map').setView([15.5,120.9],13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 let markers=[];
+let allData=[];
+
+// FILTER CHANGE
+document.getElementById("employee").onchange = render;
+document.getElementById("date").onchange = render;
 
 // REALTIME
 db.collection("attendance").orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
+allData=[];
+let names = new Set();
+
+snapshot.forEach(doc=>{
+let d = doc.data();
+allData.push(d);
+names.add(d.name);
+});
+
+// POPULATE EMPLOYEE DROPDOWN
+let select = document.getElementById("employee");
+select.innerHTML = `<option value="ALL">All Employees</option>`;
+
+names.forEach(n=>{
+select.innerHTML += `<option value="${n}">${n}</option>`;
+});
+
+render();
+
+});
+
+function render(){
+
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
-let grouped = {};
+let emp = document.getElementById("employee").value;
+let date = document.getElementById("date").value;
+
+let filtered = allData.filter(d=>{
+
+let matchEmp = emp==="ALL" || d.name===emp;
+
+let matchDate = true;
+if(date){
+let dDate = new Date(d.timestamp).toISOString().split("T")[0];
+matchDate = dDate === date;
+}
+
+return matchEmp && matchDate;
+});
+
+// STATS
+let total=filtered.length;
+let inCount=filtered.filter(d=>d.type==="IN").length;
+let outCount=filtered.filter(d=>d.type==="OUT").length;
+
+document.getElementById("total").innerText=total;
+document.getElementById("in").innerText=inCount;
+document.getElementById("out").innerText=outCount;
 
 // GROUP BY LOCATION
-snapshot.forEach(doc=>{
-let d = doc.data();
-let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
+let grouped={};
 
+filtered.forEach(d=>{
+let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
 if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
 });
@@ -111,22 +201,22 @@ let logs = grouped[key];
 let lat = logs[0].lat;
 let lon = logs[0].lon;
 
-// SORT LATEST FIRST
+// SORT LATEST
 logs.sort((a,b)=>b.timestamp - a.timestamp);
 
-// POPUP UI
+// POPUP
 let html = `<div class="popup-box">`;
 html += `<div class="popup-header">📍 ${logs.length} Logs</div>`;
 
 logs.forEach(l=>{
 
-let tagClass = "autoTag";
+let tagClass="autoTag";
 if(l.type==="IN") tagClass="inTag";
 if(l.type==="OUT") tagClass="outTag";
 
 html += `
 <div class="popup-item">
-<div class="popup-left">
+<div>
 <b>${l.name}</b><br>
 <small>${l.time}</small>
 </div>
@@ -135,7 +225,6 @@ ${l.type}
 </div>
 </div>
 `;
-
 });
 
 html += `</div>`;
@@ -146,9 +235,7 @@ let iconHTML = `
 background:#111827;
 padding:6px 10px;
 border-radius:20px;
-font-size:12px;
-color:white;
-border:1px solid #333;">
+font-size:12px;">
 📍 ${logs.length}
 </div>
 `;
@@ -167,7 +254,7 @@ markers.push(marker);
 
 });
 
-});
+}
 
 </script>
 

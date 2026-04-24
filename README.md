@@ -1,14 +1,15 @@
-<!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QA KM Route Dashboard</title>
+<title>QA Point To Point Route</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
 <style>
 *{box-sizing:border-box}
+
 body{
 margin:0;
 font-family:Arial,Helvetica,sans-serif;
@@ -41,11 +42,11 @@ text-align:center;
 .num{
 font-size:22px;
 font-weight:bold;
-margin-bottom:5px;
+margin-bottom:4px;
 }
 
 #map{
-height:56vh;
+height:58vh;
 width:100%;
 }
 
@@ -69,16 +70,6 @@ margin:0 0 10px;
 font-size:15px;
 }
 
-.pin{
-background:#111827;
-padding:6px 10px;
-border-radius:18px;
-font-size:12px;
-font-weight:bold;
-border:1px solid #334155;
-white-space:nowrap;
-}
-
 .item{
 background:#111827;
 padding:10px;
@@ -88,8 +79,8 @@ font-size:13px;
 }
 
 .btn{
-width:100%;
 margin-top:8px;
+width:100%;
 padding:8px;
 border:none;
 border-radius:10px;
@@ -97,6 +88,16 @@ background:#2563eb;
 color:#fff;
 font-weight:bold;
 cursor:pointer;
+}
+
+.pin{
+background:#111827;
+padding:6px 10px;
+border-radius:18px;
+font-size:12px;
+font-weight:bold;
+border:1px solid #334155;
+white-space:nowrap;
 }
 
 .green{color:#22c55e}
@@ -110,26 +111,26 @@ cursor:pointer;
 </head>
 <body>
 
-<div class="header">QA KM Route Dashboard</div>
+<div class="header">QA Point To Point Route</div>
 
 <div class="top">
 <div class="card"><div class="num" id="empCount">0</div>Employees</div>
-<div class="card"><div class="num" id="todayKm">0</div>Total KM</div>
-<div class="card"><div class="num" id="selectedKm">0</div>Selected KM</div>
-<div class="card"><div class="num" id="selectedPay">0</div>Pay</div>
+<div class="card"><div class="num" id="stops">0</div>Stops</div>
+<div class="card"><div class="num" id="km">0</div>Total KM</div>
+<div class="card"><div class="num" id="pay">0</div>Pay</div>
 </div>
 
 <div id="map"></div>
 
 <div class="bottom">
 <div class="panel">
-<h3>Employees Today</h3>
-<div id="list"></div>
+<h3>Employees</h3>
+<div id="employeeList"></div>
 </div>
 
 <div class="panel">
 <h3>Route Details</h3>
-<div id="details">Select employee to compute route.</div>
+<div id="details">Select employee to generate route.</div>
 </div>
 </div>
 
@@ -138,11 +139,11 @@ cursor:pointer;
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-// ======================
-// FIREBASE CONFIG
-// ======================
+// ====================
+// FIREBASE
+// ====================
 const firebaseConfig = {
-  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -150,81 +151,70 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ======================
+// ====================
 // SETTINGS
-// ======================
-const RATE_PER_KM = 15; // palitan mo kung magkano per km
+// ====================
+const RATE_PER_KM = 15; // palitan kung gusto
+const DUPLICATE_RADIUS_METERS = 50;
 
-// ======================
+// ====================
 // MAP
-// ======================
+// ====================
 const map = L.map("map").setView([15.5,120.9],12);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-maxZoom:19
-}).addTo(map);
+L.tileLayer(
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+{maxZoom:19}
+).addTo(map);
 
 let markers = [];
 let routeLine = null;
 let routePins = [];
 
-// ======================
-// LOAD ATTENDANCE
-// expects attendance:
-// name, lat, lon, timestamp, purpose
-// ======================
-db.collection("attendance").orderBy("timestamp","desc")
+// ====================
+// LOAD EMPLOYEES
+// ====================
+db.collection("attendance")
+.orderBy("timestamp","desc")
 .onSnapshot(snapshot=>{
 
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
 let rows = [];
-snapshot.forEach(doc=>{
-rows.push(doc.data());
-});
+snapshot.forEach(doc=>rows.push(doc.data()));
 
-let groupedEmp = {};
-let latestPerEmp = {};
+let empMap = {};
+let latest = {};
 
 rows.forEach(r=>{
 
 if(!r.name || !r.lat || !r.lon) return;
 
-if(!groupedEmp[r.name]) groupedEmp[r.name]=[];
-groupedEmp[r.name].push(r);
+if(!empMap[r.name]) empMap[r.name]=[];
+empMap[r.name].push(r);
 
-if(!latestPerEmp[r.name]){
-latestPerEmp[r.name]=r;
-}
+if(!latest[r.name]) latest[r.name]=r;
 
 });
 
-// stats
 document.getElementById("empCount").textContent =
-Object.keys(groupedEmp).length;
+Object.keys(empMap).length;
 
-// employee list
-document.getElementById("list").innerHTML="";
+document.getElementById("employeeList").innerHTML="";
 
-let totalKmAll = 0;
+Object.keys(empMap).forEach(name=>{
 
-Object.keys(groupedEmp).forEach(name=>{
-
-let logs = groupedEmp[name].sort((a,b)=>a.timestamp-b.timestamp);
-
-let km = totalDistance(logs);
-totalKmAll += km;
-
-document.getElementById("list").innerHTML += `
+document.getElementById("employeeList").innerHTML += `
 <div class="item">
 <b>${name}</b><br>
-Today KM: <span class="green">${km.toFixed(2)}</span><br>
-<button class="btn" onclick="showRoute('${name}')">Show Route</button>
+<button class="btn" onclick="showRoute('${name}')">
+Show Route
+</button>
 </div>
 `;
 
-let latest = latestPerEmp[name];
+let l = latest[name];
 
 let icon = L.divIcon({
 className:"",
@@ -232,26 +222,22 @@ html:`<div class="pin">📍 ${name}</div>`,
 iconSize:[90,30]
 });
 
-let marker = L.marker([latest.lat,latest.lon],{icon})
+let marker = L.marker([l.lat,l.lon],{icon})
 .addTo(map)
 .bindPopup(`
 <b>${name}</b><br>
-Latest Position<br>
-KM Today: ${km.toFixed(2)}
+Latest Position
 `);
 
 markers.push(marker);
 
 });
 
-document.getElementById("todayKm").textContent =
-totalKmAll.toFixed(2);
-
 });
 
-// ======================
+// ====================
 // SHOW ROUTE
-// ======================
+// ====================
 window.showRoute = async function(name){
 
 clearRoute();
@@ -269,61 +255,112 @@ document.getElementById("details").innerHTML="No data.";
 return;
 }
 
-let pts = logs.map(x=>[x.lat,x.lon]);
+// remove duplicate nearby points
+let cleaned = [];
 
+logs.forEach(p=>{
+
+if(cleaned.length===0){
+cleaned.push(p);
+return;
+}
+
+let prev = cleaned[cleaned.length-1];
+
+let meters = haversine(
+prev.lat,prev.lon,
+p.lat,p.lon
+) * 1000;
+
+if(meters >= DUPLICATE_RADIUS_METERS){
+cleaned.push(p);
+}
+
+});
+
+let pts = cleaned.map(x=>[x.lat,x.lon]);
+
+// draw route
 routeLine = L.polyline(pts,{weight:5}).addTo(map);
 map.fitBounds(routeLine.getBounds(),{padding:[30,30]});
 
-// start / end markers
-routePins.push(
-L.marker(pts[0]).addTo(map).bindPopup("Start")
+// markers A B C D
+cleaned.forEach((p,i)=>{
+
+let label = String.fromCharCode(65+i); // A,B,C...
+
+let mk = L.marker([p.lat,p.lon])
+.addTo(map)
+.bindPopup(`
+<b>Point ${label}</b><br>
+${formatTime(p.timestamp)}<br>
+${p.purpose || '-'}
+`);
+
+routePins.push(mk);
+
+});
+
+// KM
+let totalKm = totalDistance(cleaned);
+let totalPay = totalKm * RATE_PER_KM;
+
+// top cards
+document.getElementById("stops").textContent =
+cleaned.length;
+
+document.getElementById("km").textContent =
+totalKm.toFixed(2);
+
+document.getElementById("pay").textContent =
+totalPay.toFixed(2);
+
+// details
+let html = `
+<b>${name}</b><br><br>
+Stops: ${cleaned.length}<br>
+KM: <span class="green">${totalKm.toFixed(2)}</span><br>
+Rate/KM: ${RATE_PER_KM}<br>
+Pay: <span class="green">${totalPay.toFixed(2)}</span><br><br>
+`;
+
+for(let i=1;i<cleaned.length;i++){
+
+let a = cleaned[i-1];
+let b = cleaned[i];
+
+let segKm = haversine(
+a.lat,a.lon,b.lat,b.lon
 );
 
-routePins.push(
-L.marker(pts[pts.length-1]).addTo(map).bindPopup("End")
-);
+let from = String.fromCharCode(64+i);
+let to = String.fromCharCode(65+i);
 
-let km = totalDistance(logs);
-let pay = km * RATE_PER_KM;
-
-document.getElementById("selectedKm").textContent =
-km.toFixed(2);
-
-document.getElementById("selectedPay").textContent =
-pay.toFixed(2);
-
-let html = `<b>${name}</b><br><br>`;
-html += `Rate/KM: ${RATE_PER_KM}<br>`;
-html += `Total KM: <span class="green">${km.toFixed(2)}</span><br>`;
-html += `Estimated Pay: <span class="green">${pay.toFixed(2)}</span><br><br>`;
-
-logs.forEach(l=>{
 html += `
 <div class="item">
-📍 ${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}<br>
-🕒 ${formatTime(l.timestamp)}<br>
-📌 ${l.purpose || '-'}
+${from} ➜ ${to}<br>
+${segKm.toFixed(2)} KM<br>
+🕒 ${formatTime(b.timestamp)}
 </div>
 `;
-});
+
+}
 
 document.getElementById("details").innerHTML = html;
 
 }
 
-// ======================
-// DISTANCE KM
-// ======================
+// ====================
+// HELPERS
+// ====================
 function totalDistance(arr){
 
 let km = 0;
 
 for(let i=1;i<arr.length;i++){
 km += haversine(
-arr[i-1].lat,
-arr[i-1].lon,
-arr[i].lat,
-arr[i].lon
+arr[i-1].lat,arr[i-1].lon,
+arr[i].lat,arr[i].lon
 );
 }
 
@@ -333,6 +370,7 @@ return km;
 function haversine(lat1,lon1,lat2,lon2){
 
 const R = 6371;
+
 const dLat = toRad(lat2-lat1);
 const dLon = toRad(lon2-lon1);
 
@@ -351,7 +389,6 @@ function toRad(v){
 return v*Math.PI/180;
 }
 
-// ======================
 function clearRoute(){
 
 if(routeLine){
@@ -361,6 +398,7 @@ routeLine=null;
 
 routePins.forEach(p=>map.removeLayer(p));
 routePins=[];
+
 }
 
 function formatTime(ts){

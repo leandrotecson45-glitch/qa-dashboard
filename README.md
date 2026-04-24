@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QA Live360 Dashboard</title>
+<title>QA Dashboard</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -16,15 +16,23 @@ background:#0b1220;
 color:#fff;
 }
 
+/* HEADER */
 .header{
 padding:14px;
-background:#111827;
-font-size:20px;
-font-weight:bold;
 text-align:center;
+font-size:22px;
+font-weight:bold;
+background:#111827;
 }
 
-.top-stats{
+/* MAP */
+#map{
+height:58vh;
+width:100%;
+}
+
+/* STATS */
+.stats{
 display:grid;
 grid-template-columns:repeat(4,1fr);
 gap:10px;
@@ -36,20 +44,15 @@ background:#1f2937;
 padding:12px;
 border-radius:14px;
 text-align:center;
-box-shadow:0 4px 10px rgba(0,0,0,.25);
 }
 
-.card .num{
+.num{
 font-size:22px;
 font-weight:bold;
 margin-bottom:4px;
 }
 
-#map{
-height:58vh;
-width:100%;
-}
-
+/* CHARTS */
 .bottom{
 padding:10px;
 display:grid;
@@ -61,8 +64,6 @@ gap:10px;
 background:#1f2937;
 padding:12px;
 border-radius:14px;
-min-height:180px;
-overflow:auto;
 }
 
 .panel h3{
@@ -70,26 +71,7 @@ margin:0 0 10px;
 font-size:15px;
 }
 
-.list-item{
-padding:10px;
-background:#111827;
-border-radius:10px;
-margin-bottom:8px;
-font-size:13px;
-}
-
-.route-btn{
-margin-top:8px;
-padding:8px 10px;
-border:none;
-border-radius:8px;
-background:#2563eb;
-color:#fff;
-width:100%;
-font-weight:bold;
-cursor:pointer;
-}
-
+/* PIN */
 .pin{
 background:#111827;
 padding:6px 10px;
@@ -97,16 +79,46 @@ border-radius:18px;
 font-size:12px;
 font-weight:bold;
 border:1px solid #334155;
-color:#fff;
 white-space:nowrap;
 }
 
-.green{color:#22c55e}
-.orange{color:#f59e0b}
-.red{color:#ef4444}
+/* POPUP */
+.popup-box{
+max-height:260px;
+overflow-y:auto;
+}
+
+.item{
+background:#111827;
+padding:10px;
+border-radius:10px;
+margin-bottom:8px;
+font-size:13px;
+}
+
+.tag{
+display:inline-block;
+padding:4px 8px;
+border-radius:8px;
+font-size:11px;
+font-weight:bold;
+margin-top:5px;
+}
+
+.in{background:#22c55e;}
+.out{background:#ef4444;}
+
+.purpose{
+margin-top:6px;
+padding:7px;
+background:#1e293b;
+border-left:3px solid #3b82f6;
+border-radius:8px;
+font-size:12px;
+}
 
 @media(max-width:700px){
-.top-stats{grid-template-columns:repeat(2,1fr)}
+.stats{grid-template-columns:repeat(2,1fr)}
 .bottom{grid-template-columns:1fr}
 #map{height:52vh}
 }
@@ -114,29 +126,30 @@ white-space:nowrap;
 </head>
 <body>
 
-<div class="header">QA Live360 Dashboard</div>
+<div class="header">QA Dashboard</div>
 
-<div class="top-stats">
-<div class="card"><div class="num" id="activeCount">0</div>Active</div>
-<div class="card"><div class="num" id="movingCount">0</div>Moving</div>
-<div class="card"><div class="num" id="idleCount">0</div>Idle</div>
-<div class="card"><div class="num" id="offlineCount">0</div>Offline</div>
+<div class="stats">
+<div class="card"><div class="num" id="total">0</div>Total</div>
+<div class="card"><div class="num" id="inCount">0</div>IN</div>
+<div class="card"><div class="num" id="outCount">0</div>OUT</div>
+<div class="card"><div class="num" id="locationCount">0</div>Locations</div>
 </div>
 
 <div id="map"></div>
 
 <div class="bottom">
 <div class="panel">
-<h3>Live Employees</h3>
-<div id="employeeList"></div>
+<h3>Activity Chart</h3>
+<canvas id="barChart"></canvas>
 </div>
 
 <div class="panel">
-<h3>Route Details</h3>
-<div id="routeInfo">Select employee pin to show route.</div>
+<h3>Purpose Chart</h3>
+<canvas id="pieChart"></canvas>
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -146,7 +159,7 @@ white-space:nowrap;
 // FIREBASE CONFIG
 // =====================
 const firebaseConfig = {
-apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+ apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -157,151 +170,147 @@ const db = firebase.firestore();
 // =====================
 // MAP
 // =====================
-const map = L.map('map').setView([15.5,120.9],12);
+const map = L.map("map").setView([15.5,120.9],12);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
 maxZoom:19
 }).addTo(map);
 
 let markers = [];
-let routeLine = null;
+let chart1 = null;
+let chart2 = null;
 
 // =====================
-// LOAD LIVE LOCATIONS
-// expected collection: liveLocations
-// fields:
-// name, lat, lon, updatedAt, status, purpose
+// REALTIME DATA
 // =====================
-
-db.collection("liveLocations").onSnapshot(snapshot=>{
+db.collection("attendance").orderBy("timestamp","desc")
+.onSnapshot(snapshot=>{
 
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
-let active=0,moving=0,idle=0,offline=0;
-
-document.getElementById("employeeList").innerHTML="";
-
+let rows = [];
 snapshot.forEach(doc=>{
+rows.push(doc.data());
+});
 
-const d = doc.data();
+// STATS
+let total = rows.length;
+let inCount = rows.filter(x=>x.type==="IN").length;
+let outCount = rows.filter(x=>x.type==="OUT").length;
+
+document.getElementById("total").textContent = total;
+document.getElementById("inCount").textContent = inCount;
+document.getElementById("outCount").textContent = outCount;
+
+// GROUP SAME LOCATION
+let grouped = {};
+
+rows.forEach(d=>{
 
 if(!d.lat || !d.lon) return;
 
-active++;
+let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
 
-let status = d.status || "Idle";
-let statusClass = "orange";
+if(!grouped[key]) grouped[key]=[];
+grouped[key].push(d);
 
-if(status==="Moving"){
-moving++;
-statusClass="green";
-}else if(status==="Idle"){
-idle++;
-statusClass="orange";
-}else{
-offline++;
-statusClass="red";
-}
-
-const pin = L.divIcon({
-className:"",
-html:`<div class="pin">📍 ${d.name}</div>`,
-iconSize:[80,30]
 });
 
-const marker = L.marker([d.lat,d.lon],{icon:pin}).addTo(map);
+document.getElementById("locationCount").textContent =
+Object.keys(grouped).length;
 
-marker.bindPopup(`
-<b>${d.name}</b><br>
-<span class="${statusClass}">${status}</span><br>
-Purpose: ${d.purpose || '-'}<br>
-Last Update: ${formatTime(d.updatedAt)}
-<br><br>
-<button class="route-btn" onclick="showRoute('${doc.id}','${d.name}')">
-Show Route
-</button>
-`);
+// CREATE MARKERS
+Object.keys(grouped).forEach(key=>{
+
+let logs = grouped[key];
+let lat = logs[0].lat;
+let lon = logs[0].lon;
+
+let html = `<div class="popup-box"><b>📍 ${logs.length} Record(s)</b><br><br>`;
+
+logs.forEach(l=>{
+
+let tag = l.type==="IN" ? "in":"out";
+
+html += `
+<div class="item">
+<b>${l.name || "-"}</b><br>
+🕒 ${l.time || "-"}<br>
+<span class="tag ${tag}">${l.type}</span>
+<div class="purpose">📌 ${l.purpose || "No purpose"}</div>
+</div>
+`;
+
+});
+
+html += `</div>`;
+
+let icon = L.divIcon({
+className:"",
+html:`<div class="pin">📍 ${logs.length}</div>`,
+iconSize:[60,30]
+});
+
+let marker = L.marker([lat,lon],{icon})
+.addTo(map)
+.bindPopup(html);
 
 markers.push(marker);
 
-// list
-document.getElementById("employeeList").innerHTML += `
-<div class="list-item">
-<b>${d.name}</b><br>
-<span class="${statusClass}">${status}</span><br>
-${d.purpose || '-'}
-</div>
-`;
-
-});
-
-document.getElementById("activeCount").textContent = active;
-document.getElementById("movingCount").textContent = moving;
-document.getElementById("idleCount").textContent = idle;
-document.getElementById("offlineCount").textContent = offline;
-
 });
 
 // =====================
-// SHOW ROUTE
-// collection: routeLogs
-// fields:
-// employeeId, lat, lon, time
+// CHART 1
 // =====================
-window.showRoute = async function(employeeId,name){
+if(chart1) chart1.destroy();
 
-if(routeLine){
-map.removeLayer(routeLine);
-routeLine=null;
+chart1 = new Chart(
+document.getElementById("barChart"),
+{
+type:"bar",
+data:{
+labels:["IN","OUT"],
+datasets:[{
+data:[inCount,outCount]
+}]
+},
+options:{
+responsive:true,
+plugins:{legend:{display:false}}
 }
+}
+);
 
-const snap = await db.collection("routeLogs")
-.where("employeeId","==",employeeId)
-.orderBy("time")
-.get();
+// =====================
+// CHART 2
+// =====================
+let purposeMap = {};
 
-let pts = [];
-let html = `<b>${name}</b><br><br>`;
-
-snap.forEach(doc=>{
-const d = doc.data();
-
-pts.push([d.lat,d.lon]);
-
-html += `
-<div class="list-item">
-📍 ${d.lat.toFixed(5)}, ${d.lon.toFixed(5)}<br>
-🕒 ${formatTime(d.time)}
-</div>
-`;
+rows.forEach(r=>{
+let p = r.purpose || "None";
+purposeMap[p] = (purposeMap[p]||0)+1;
 });
 
-if(pts.length){
-routeLine = L.polyline(pts,{weight:5}).addTo(map);
-map.fitBounds(routeLine.getBounds(),{padding:[30,30]});
+if(chart2) chart2.destroy();
+
+chart2 = new Chart(
+document.getElementById("pieChart"),
+{
+type:"pie",
+data:{
+labels:Object.keys(purposeMap),
+datasets:[{
+data:Object.values(purposeMap)
+}]
+},
+options:{
+responsive:true
 }
-
-document.getElementById("routeInfo").innerHTML = html || "No route today.";
-
 }
+);
 
-// =====================
-// TIME FORMAT
-// =====================
-function formatTime(ts){
-if(!ts) return "-";
-
-let date;
-
-if(ts.seconds){
-date = new Date(ts.seconds*1000);
-}else{
-date = new Date(ts);
-}
-
-return date.toLocaleString();
-}
+});
 </script>
 
 </body>

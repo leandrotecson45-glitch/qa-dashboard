@@ -1,9 +1,9 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QA Dashboard</title>
+<title>QA KM Route Dashboard</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 
@@ -16,7 +16,6 @@ background:#0b1220;
 color:#fff;
 }
 
-/* HEADER */
 .header{
 padding:14px;
 text-align:center;
@@ -25,14 +24,7 @@ font-weight:bold;
 background:#111827;
 }
 
-/* MAP */
-#map{
-height:58vh;
-width:100%;
-}
-
-/* STATS */
-.stats{
+.top{
 display:grid;
 grid-template-columns:repeat(4,1fr);
 gap:10px;
@@ -49,10 +41,14 @@ text-align:center;
 .num{
 font-size:22px;
 font-weight:bold;
-margin-bottom:4px;
+margin-bottom:5px;
 }
 
-/* CHARTS */
+#map{
+height:56vh;
+width:100%;
+}
+
 .bottom{
 padding:10px;
 display:grid;
@@ -64,6 +60,8 @@ gap:10px;
 background:#1f2937;
 padding:12px;
 border-radius:14px;
+min-height:220px;
+overflow:auto;
 }
 
 .panel h3{
@@ -71,7 +69,6 @@ margin:0 0 10px;
 font-size:15px;
 }
 
-/* PIN */
 .pin{
 background:#111827;
 padding:6px 10px;
@@ -82,12 +79,6 @@ border:1px solid #334155;
 white-space:nowrap;
 }
 
-/* POPUP */
-.popup-box{
-max-height:260px;
-overflow-y:auto;
-}
-
 .item{
 background:#111827;
 padding:10px;
@@ -96,29 +87,22 @@ margin-bottom:8px;
 font-size:13px;
 }
 
-.tag{
-display:inline-block;
-padding:4px 8px;
-border-radius:8px;
-font-size:11px;
+.btn{
+width:100%;
+margin-top:8px;
+padding:8px;
+border:none;
+border-radius:10px;
+background:#2563eb;
+color:#fff;
 font-weight:bold;
-margin-top:5px;
+cursor:pointer;
 }
 
-.in{background:#22c55e;}
-.out{background:#ef4444;}
-
-.purpose{
-margin-top:6px;
-padding:7px;
-background:#1e293b;
-border-left:3px solid #3b82f6;
-border-radius:8px;
-font-size:12px;
-}
+.green{color:#22c55e}
 
 @media(max-width:700px){
-.stats{grid-template-columns:repeat(2,1fr)}
+.top{grid-template-columns:repeat(2,1fr)}
 .bottom{grid-template-columns:1fr}
 #map{height:52vh}
 }
@@ -126,40 +110,39 @@ font-size:12px;
 </head>
 <body>
 
-<div class="header">QA Dashboard</div>
+<div class="header">QA KM Route Dashboard</div>
 
-<div class="stats">
-<div class="card"><div class="num" id="total">0</div>Total</div>
-<div class="card"><div class="num" id="inCount">0</div>IN</div>
-<div class="card"><div class="num" id="outCount">0</div>OUT</div>
-<div class="card"><div class="num" id="locationCount">0</div>Locations</div>
+<div class="top">
+<div class="card"><div class="num" id="empCount">0</div>Employees</div>
+<div class="card"><div class="num" id="todayKm">0</div>Total KM</div>
+<div class="card"><div class="num" id="selectedKm">0</div>Selected KM</div>
+<div class="card"><div class="num" id="selectedPay">0</div>Pay</div>
 </div>
 
 <div id="map"></div>
 
 <div class="bottom">
 <div class="panel">
-<h3>Activity Chart</h3>
-<canvas id="barChart"></canvas>
+<h3>Employees Today</h3>
+<div id="list"></div>
 </div>
 
 <div class="panel">
-<h3>Purpose Chart</h3>
-<canvas id="pieChart"></canvas>
+<h3>Route Details</h3>
+<div id="details">Select employee to compute route.</div>
 </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
-// =====================
+// ======================
 // FIREBASE CONFIG
-// =====================
+// ======================
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -167,9 +150,14 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// =====================
+// ======================
+// SETTINGS
+// ======================
+const RATE_PER_KM = 15; // palitan mo kung magkano per km
+
+// ======================
 // MAP
-// =====================
+// ======================
 const map = L.map("map").setView([15.5,120.9],12);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
@@ -177,12 +165,14 @@ maxZoom:19
 }).addTo(map);
 
 let markers = [];
-let chart1 = null;
-let chart2 = null;
+let routeLine = null;
+let routePins = [];
 
-// =====================
-// REALTIME DATA
-// =====================
+// ======================
+// LOAD ATTENDANCE
+// expects attendance:
+// name, lat, lon, timestamp, purpose
+// ======================
 db.collection("attendance").orderBy("timestamp","desc")
 .onSnapshot(snapshot=>{
 
@@ -194,123 +184,188 @@ snapshot.forEach(doc=>{
 rows.push(doc.data());
 });
 
-// STATS
-let total = rows.length;
-let inCount = rows.filter(x=>x.type==="IN").length;
-let outCount = rows.filter(x=>x.type==="OUT").length;
+let groupedEmp = {};
+let latestPerEmp = {};
 
-document.getElementById("total").textContent = total;
-document.getElementById("inCount").textContent = inCount;
-document.getElementById("outCount").textContent = outCount;
+rows.forEach(r=>{
 
-// GROUP SAME LOCATION
-let grouped = {};
+if(!r.name || !r.lat || !r.lon) return;
 
-rows.forEach(d=>{
+if(!groupedEmp[r.name]) groupedEmp[r.name]=[];
+groupedEmp[r.name].push(r);
 
-if(!d.lat || !d.lon) return;
-
-let key = d.lat.toFixed(5)+","+d.lon.toFixed(5);
-
-if(!grouped[key]) grouped[key]=[];
-grouped[key].push(d);
+if(!latestPerEmp[r.name]){
+latestPerEmp[r.name]=r;
+}
 
 });
 
-document.getElementById("locationCount").textContent =
-Object.keys(grouped).length;
+// stats
+document.getElementById("empCount").textContent =
+Object.keys(groupedEmp).length;
 
-// CREATE MARKERS
-Object.keys(grouped).forEach(key=>{
+// employee list
+document.getElementById("list").innerHTML="";
 
-let logs = grouped[key];
-let lat = logs[0].lat;
-let lon = logs[0].lon;
+let totalKmAll = 0;
 
-let html = `<div class="popup-box"><b>📍 ${logs.length} Record(s)</b><br><br>`;
+Object.keys(groupedEmp).forEach(name=>{
 
-logs.forEach(l=>{
+let logs = groupedEmp[name].sort((a,b)=>a.timestamp-b.timestamp);
 
-let tag = l.type==="IN" ? "in":"out";
+let km = totalDistance(logs);
+totalKmAll += km;
 
-html += `
+document.getElementById("list").innerHTML += `
 <div class="item">
-<b>${l.name || "-"}</b><br>
-🕒 ${l.time || "-"}<br>
-<span class="tag ${tag}">${l.type}</span>
-<div class="purpose">📌 ${l.purpose || "No purpose"}</div>
+<b>${name}</b><br>
+Today KM: <span class="green">${km.toFixed(2)}</span><br>
+<button class="btn" onclick="showRoute('${name}')">Show Route</button>
 </div>
 `;
 
-});
-
-html += `</div>`;
+let latest = latestPerEmp[name];
 
 let icon = L.divIcon({
 className:"",
-html:`<div class="pin">📍 ${logs.length}</div>`,
-iconSize:[60,30]
+html:`<div class="pin">📍 ${name}</div>`,
+iconSize:[90,30]
 });
 
-let marker = L.marker([lat,lon],{icon})
+let marker = L.marker([latest.lat,latest.lon],{icon})
 .addTo(map)
-.bindPopup(html);
+.bindPopup(`
+<b>${name}</b><br>
+Latest Position<br>
+KM Today: ${km.toFixed(2)}
+`);
 
 markers.push(marker);
 
 });
 
-// =====================
-// CHART 1
-// =====================
-if(chart1) chart1.destroy();
-
-chart1 = new Chart(
-document.getElementById("barChart"),
-{
-type:"bar",
-data:{
-labels:["IN","OUT"],
-datasets:[{
-data:[inCount,outCount]
-}]
-},
-options:{
-responsive:true,
-plugins:{legend:{display:false}}
-}
-}
-);
-
-// =====================
-// CHART 2
-// =====================
-let purposeMap = {};
-
-rows.forEach(r=>{
-let p = r.purpose || "None";
-purposeMap[p] = (purposeMap[p]||0)+1;
-});
-
-if(chart2) chart2.destroy();
-
-chart2 = new Chart(
-document.getElementById("pieChart"),
-{
-type:"pie",
-data:{
-labels:Object.keys(purposeMap),
-datasets:[{
-data:Object.values(purposeMap)
-}]
-},
-options:{
-responsive:true
-}
-}
-);
+document.getElementById("todayKm").textContent =
+totalKmAll.toFixed(2);
 
 });
+
+// ======================
+// SHOW ROUTE
+// ======================
+window.showRoute = async function(name){
+
+clearRoute();
+
+const snap = await db.collection("attendance")
+.where("name","==",name)
+.orderBy("timestamp","asc")
+.get();
+
+let logs = [];
+snap.forEach(doc=>logs.push(doc.data()));
+
+if(!logs.length){
+document.getElementById("details").innerHTML="No data.";
+return;
+}
+
+let pts = logs.map(x=>[x.lat,x.lon]);
+
+routeLine = L.polyline(pts,{weight:5}).addTo(map);
+map.fitBounds(routeLine.getBounds(),{padding:[30,30]});
+
+// start / end markers
+routePins.push(
+L.marker(pts[0]).addTo(map).bindPopup("Start")
+);
+
+routePins.push(
+L.marker(pts[pts.length-1]).addTo(map).bindPopup("End")
+);
+
+let km = totalDistance(logs);
+let pay = km * RATE_PER_KM;
+
+document.getElementById("selectedKm").textContent =
+km.toFixed(2);
+
+document.getElementById("selectedPay").textContent =
+pay.toFixed(2);
+
+let html = `<b>${name}</b><br><br>`;
+html += `Rate/KM: ${RATE_PER_KM}<br>`;
+html += `Total KM: <span class="green">${km.toFixed(2)}</span><br>`;
+html += `Estimated Pay: <span class="green">${pay.toFixed(2)}</span><br><br>`;
+
+logs.forEach(l=>{
+html += `
+<div class="item">
+📍 ${l.lat.toFixed(5)}, ${l.lon.toFixed(5)}<br>
+🕒 ${formatTime(l.timestamp)}<br>
+📌 ${l.purpose || '-'}
+</div>
+`;
+});
+
+document.getElementById("details").innerHTML = html;
+
+}
+
+// ======================
+// DISTANCE KM
+// ======================
+function totalDistance(arr){
+
+let km = 0;
+
+for(let i=1;i<arr.length;i++){
+km += haversine(
+arr[i-1].lat,
+arr[i-1].lon,
+arr[i].lat,
+arr[i].lon
+);
+}
+
+return km;
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+
+const R = 6371;
+const dLat = toRad(lat2-lat1);
+const dLon = toRad(lon2-lon1);
+
+const a =
+Math.sin(dLat/2)*Math.sin(dLat/2)+
+Math.cos(toRad(lat1))*
+Math.cos(toRad(lat2))*
+Math.sin(dLon/2)*Math.sin(dLon/2);
+
+const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+
+return R*c;
+}
+
+function toRad(v){
+return v*Math.PI/180;
+}
+
+// ======================
+function clearRoute(){
+
+if(routeLine){
+map.removeLayer(routeLine);
+routeLine=null;
+}
+
+routePins.forEach(p=>map.removeLayer(p));
+routePins=[];
+}
+
+function formatTime(ts){
+return new Date(ts).toLocaleString();
+}
 </script>
 
 </body>

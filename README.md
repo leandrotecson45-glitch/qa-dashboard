@@ -1,222 +1,325 @@
-
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QA Portal</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>QA Dashboard</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body{
+*{
 margin:0;
-font-family:system-ui,Arial;
-background:#0b1220;
-color:white;
+padding:0;
+box-sizing:border-box;
+font-family:Arial, sans-serif;
 }
 
-/* HEADER */
-.header{
-padding:14px;
+body{
 background:#0f172a;
-box-shadow:0 2px 8px rgba(0,0,0,.3);
-font-size:18px;
-font-weight:700;
+color:#fff;
 }
 
-/* MAP */
-#map{
-height:58vh;
-}
-
-/* CHART AREA */
-.charts{
-padding:10px;
-}
-
-.chart-card{
+header{
 background:#111827;
-padding:12px;
-border-radius:14px;
-margin-bottom:10px;
-box-shadow:0 2px 8px rgba(0,0,0,.25);
+padding:15px;
+text-align:center;
+font-size:22px;
+font-weight:bold;
 }
 
-/* PIN */
-.pin{
+.topbar{
+padding:15px;
+display:flex;
+gap:10px;
+flex-wrap:wrap;
+background:#1e293b;
+}
+
+select,input{
+padding:10px;
+border:none;
+border-radius:10px;
+font-size:14px;
+}
+
+#map{
+height:420px;
+width:100%;
+}
+
+.section{
+padding:15px;
+}
+
+.card{
+background:#1e293b;
+padding:15px;
+border-radius:14px;
+margin-bottom:15px;
+box-shadow:0 4px 10px rgba(0,0,0,.25);
+}
+
+.pin-box{
 background:#111827;
 padding:6px 10px;
 border-radius:20px;
 font-size:12px;
 font-weight:bold;
-border:1px solid #374151;
-box-shadow:0 2px 6px rgba(0,0,0,.4);
+color:#fff;
+border:1px solid #334155;
 }
 
-/* POPUP */
-.popup-box{
-max-height:260px;
-overflow-y:auto;
-}
-
-.card{
-background:#1f2937;
+.popup-card{
+background:#111827;
 padding:10px;
-border-radius:12px;
+border-radius:10px;
 margin-bottom:8px;
-}
-
-.row{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:6px;
+font-size:13px;
 }
 
 .tag{
+display:inline-block;
+padding:4px 8px;
+border-radius:8px;
 font-size:11px;
-padding:3px 8px;
-border-radius:8px;
 font-weight:bold;
-}
-
-.inTag{background:#22c55e;}
-.outTag{background:#ef4444;}
-.autoTag{background:#3b82f6;}
-
-.time{
-font-size:12px;
-opacity:.7;
-}
-
-.purpose{
-padding:7px;
-background:#111827;
-border-left:3px solid #3b82f6;
-border-radius:8px;
-font-size:12px;
 margin-top:6px;
 }
 
-.count{
-font-size:13px;
-opacity:.7;
-margin-top:4px;
+.in{background:#16a34a;}
+.out{background:#dc2626;}
+
+.purpose{
+margin-top:8px;
+padding:8px;
+background:#1e293b;
+border-left:4px solid #38bdf8;
+border-radius:8px;
+font-size:12px;
+}
+
+canvas{
+background:#fff;
+border-radius:10px;
+padding:10px;
 }
 </style>
 </head>
-
 <body>
 
-<div class="header">
-QA Portal
-<div class="count" id="count">Loading...</div>
+<header>📊 QA Dashboard</header>
+
+<div class="topbar">
+<select id="employeeFilter">
+<option value="ALL">All Employees</option>
+</select>
+
+<input type="date" id="dateFilter">
 </div>
 
 <div id="map"></div>
 
-<div class="charts">
-<div class="chart-card">
+<div class="section">
+
+<div class="card">
 <canvas id="typeChart"></canvas>
 </div>
 
-<div class="chart-card">
+<div class="card">
 <canvas id="purposeChart"></canvas>
 </div>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <script>
 
-// FIREBASE
-const firebaseConfig={
+// ===============================
+// FIREBASE CONFIG
+// ===============================
+const firebaseConfig = {
  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
 
 firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
+const db = firebase.firestore();
 
+// ===============================
 // MAP
-const map=L.map('map').setView([15.5,120.9],13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// ===============================
+const map = L.map('map').setView([15.486,120.967],13);
 
-let markers=[];
-let chart1, chart2;
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
+}).addTo(map);
 
-// LIVE DATA
-db.collection("attendance").orderBy("timestamp")
+let markers = [];
+let allData = [];
+let chart1 = null;
+let chart2 = null;
+
+// ===============================
+// LOAD DATA REALTIME
+// ===============================
+db.collection("attendance")
+.orderBy("timestamp")
 .onSnapshot(snapshot=>{
+
+allData = [];
+
+snapshot.forEach(doc=>{
+allData.push(doc.data());
+});
+
+populateEmployees();
+renderAll();
+
+});
+
+// ===============================
+// FILTER EVENTS
+// ===============================
+document.getElementById("employeeFilter")
+.addEventListener("change",renderAll);
+
+document.getElementById("dateFilter")
+.addEventListener("change",renderAll);
+
+// ===============================
+// POPULATE EMPLOYEE LIST
+// ===============================
+function populateEmployees(){
+
+const select =
+document.getElementById("employeeFilter");
+
+let names =
+[...new Set(allData.map(x=>x.name))];
+
+select.innerHTML =
+'<option value="ALL">All Employees</option>';
+
+names.forEach(name=>{
+
+select.innerHTML +=
+`<option value="${name}">${name}</option>`;
+
+});
+
+}
+
+// ===============================
+// FILTER DATA
+// ===============================
+function getFilteredData(){
+
+const emp =
+document.getElementById("employeeFilter").value;
+
+const date =
+document.getElementById("dateFilter").value;
+
+return allData.filter(item=>{
+
+let empMatch =
+(emp==="ALL" || item.name===emp);
+
+let dateMatch = true;
+
+if(date){
+
+let itemDate =
+new Date(item.timestamp)
+.toISOString()
+.split("T")[0];
+
+dateMatch = itemDate===date;
+}
+
+return empMatch && dateMatch;
+
+});
+
+}
+
+// ===============================
+// RENDER ALL
+// ===============================
+function renderAll(){
+
+let filtered = getFilteredData();
+
+renderMap(filtered);
+renderCharts(filtered);
+
+}
+
+// ===============================
+// MAP
+// ===============================
+function renderMap(data){
 
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
-let allData=[];
-snapshot.forEach(doc=>allData.push(doc.data()));
+let grouped = {};
 
-document.getElementById("count").innerText=
-allData.length + " Total Records";
+data.forEach(d=>{
 
-// GROUP LOCATION
-let grouped={};
+let key =
+d.lat.toFixed(5)+","+d.lon.toFixed(5);
 
-allData.forEach(d=>{
+if(!grouped[key]){
+grouped[key]=[];
+}
 
-let key=d.lat.toFixed(5)+","+d.lon.toFixed(5);
-
-if(!grouped[key]) grouped[key]=[];
 grouped[key].push(d);
 
 });
 
-// CREATE MARKERS
 Object.keys(grouped).forEach(key=>{
 
-let logs=grouped[key];
-let lat=logs[0].lat;
-let lon=logs[0].lon;
+let logs = grouped[key];
+
+let lat = logs[0].lat;
+let lon = logs[0].lon;
 
 logs.sort((a,b)=>b.timestamp-a.timestamp);
 
-let html=`<div class="popup-box">`;
+let html="";
 
 logs.forEach(l=>{
 
-let tag="autoTag";
-if(l.type==="IN") tag="inTag";
-if(l.type==="OUT") tag="outTag";
-
-html+=`
-<div class="card">
-
-<div class="row">
-<b>${l.name}</b>
-<div class="tag ${tag}">${l.type}</div>
-</div>
-
-<div class="time">${l.time}</div>
-
+html += `
+<div class="popup-card">
+<b>${l.name}</b><br>
+${l.time}<br>
+<span class="tag ${l.type==='IN'?'in':'out'}">
+${l.type}
+</span>
 <div class="purpose">
-📌 ${l.purpose || "No purpose"}
+📌 ${l.purpose || 'No purpose'}
 </div>
-
 </div>
 `;
 
 });
 
-html+=`</div>`;
-
-let icon=L.divIcon({
-html:`<div class="pin">📍 ${logs.length}</div>`,
+let icon = L.divIcon({
+html:`<div class="pin-box">📍 ${logs.length}</div>`,
 className:"",
 iconSize:[60,30]
 });
 
-let marker=L.marker([lat,lon],{icon})
+let marker =
+L.marker([lat,lon],{icon})
 .addTo(map)
 .bindPopup(html);
 
@@ -224,44 +327,55 @@ markers.push(marker);
 
 });
 
-// CHART 1
-let typeCount={IN:0,OUT:0,AUTO:0};
+}
 
-allData.forEach(d=>{
-if(typeCount[d.type]!==undefined)
-typeCount[d.type]++;
+// ===============================
+// CHARTS
+// ===============================
+function renderCharts(data){
+
+let inCount=0;
+let outCount=0;
+
+let purposeCount={};
+
+data.forEach(d=>{
+
+if(d.type==="IN") inCount++;
+if(d.type==="OUT") outCount++;
+
+let p = d.purpose || "None";
+
+if(!purposeCount[p]){
+purposeCount[p]=0;
+}
+
+purposeCount[p]++;
+
 });
 
+// BAR
 if(chart1) chart1.destroy();
 
-chart1=new Chart(
+chart1 =
+new Chart(
 document.getElementById("typeChart"),
 {
 type:"bar",
 data:{
-labels:["IN","OUT","AUTO"],
+labels:["IN","OUT"],
 datasets:[{
-data:[
-typeCount.IN,
-typeCount.OUT,
-typeCount.AUTO
-]
+label:"Logs",
+data:[inCount,outCount]
 }]
 }
 });
 
-// CHART 2
-let purposeCount={};
-
-allData.forEach(d=>{
-let p=d.purpose || "None";
-if(!purposeCount[p]) purposeCount[p]=0;
-purposeCount[p]++;
-});
-
+// PIE
 if(chart2) chart2.destroy();
 
-chart2=new Chart(
+chart2 =
+new Chart(
 document.getElementById("purposeChart"),
 {
 type:"pie",
@@ -273,9 +387,8 @@ data:Object.values(purposeCount)
 }
 });
 
-});
+}
 
 </script>
-
 </body>
 </html>

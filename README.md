@@ -13,7 +13,7 @@
 margin:0;
 padding:0;
 box-sizing:border-box;
-font-family:Arial, sans-serif;
+font-family:Arial,sans-serif;
 }
 
 body{
@@ -112,11 +112,13 @@ padding:10px;
 <header>📊 QA Dashboard</header>
 
 <div class="topbar">
+
 <select id="employeeFilter">
 <option value="ALL">All Employees</option>
 </select>
 
 <input type="date" id="dateFilter">
+
 </div>
 
 <div id="map"></div>
@@ -139,86 +141,90 @@ padding:10px;
 
 <script>
 
-// ===============================
+// =====================================
 // FIREBASE CONFIG
-// ===============================
+// =====================================
 const firebaseConfig = {
  apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
+
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ===============================
+// =====================================
 // MAP
-// ===============================
-const map = L.map('map').setView([15.486,120.967],13);
+// =====================================
+const map = L.map("map").setView([15.486,120.967],13);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-maxZoom:19
-}).addTo(map);
+L.tileLayer(
+'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+{maxZoom:19}
+).addTo(map);
 
 let markers = [];
-let allData = [];
+let allLogs = [];
 let chart1 = null;
 let chart2 = null;
 
-// ===============================
-// LOAD DATA REALTIME
-// ===============================
+// =====================================
+// LOAD EMPLOYEE MASTER LIST
+// (CONNECTED TO FIELD DROPDOWN)
+// =====================================
+db.collection("employees")
+.onSnapshot(snapshot=>{
+
+const select =
+document.getElementById("employeeFilter");
+
+select.innerHTML =
+'<option value="ALL">All Employees</option>';
+
+snapshot.forEach(doc=>{
+
+let emp = doc.data();
+
+select.innerHTML +=
+`<option value="${emp.name}">
+${emp.name}
+</option>`;
+
+});
+
+});
+
+// =====================================
+// LOAD ATTENDANCE DATA
+// =====================================
 db.collection("attendance")
 .orderBy("timestamp")
 .onSnapshot(snapshot=>{
 
-allData = [];
+allLogs = [];
 
 snapshot.forEach(doc=>{
-allData.push(doc.data());
+allLogs.push(doc.data());
 });
 
-populateEmployees();
 renderAll();
 
 });
 
-// ===============================
+// =====================================
 // FILTER EVENTS
-// ===============================
+// =====================================
 document.getElementById("employeeFilter")
 .addEventListener("change",renderAll);
 
 document.getElementById("dateFilter")
 .addEventListener("change",renderAll);
 
-// ===============================
-// POPULATE EMPLOYEE LIST
-// ===============================
-function populateEmployees(){
-
-const select =
-document.getElementById("employeeFilter");
-
-let names =
-[...new Set(allData.map(x=>x.name))];
-
-select.innerHTML =
-'<option value="ALL">All Employees</option>';
-
-names.forEach(name=>{
-
-select.innerHTML +=
-`<option value="${name}">${name}</option>`;
-
-});
-
-}
-
-// ===============================
-// FILTER DATA
-// ===============================
-function getFilteredData(){
+// =====================================
+// GET FILTERED DATA
+// =====================================
+function getFiltered(){
 
 const emp =
 document.getElementById("employeeFilter").value;
@@ -226,12 +232,12 @@ document.getElementById("employeeFilter").value;
 const date =
 document.getElementById("dateFilter").value;
 
-return allData.filter(item=>{
+return allLogs.filter(item=>{
 
-let empMatch =
+let empOk =
 (emp==="ALL" || item.name===emp);
 
-let dateMatch = true;
+let dateOk = true;
 
 if(date){
 
@@ -240,36 +246,36 @@ new Date(item.timestamp)
 .toISOString()
 .split("T")[0];
 
-dateMatch = itemDate===date;
+dateOk = itemDate===date;
 }
 
-return empMatch && dateMatch;
+return empOk && dateOk;
 
 });
 
 }
 
-// ===============================
+// =====================================
 // RENDER ALL
-// ===============================
+// =====================================
 function renderAll(){
 
-let filtered = getFilteredData();
+const data = getFiltered();
 
-renderMap(filtered);
-renderCharts(filtered);
+renderMap(data);
+renderCharts(data);
 
 }
 
-// ===============================
+// =====================================
 // MAP
-// ===============================
+// =====================================
 function renderMap(data){
 
 markers.forEach(m=>map.removeLayer(m));
 markers=[];
 
-let grouped = {};
+let grouped={};
 
 data.forEach(d=>{
 
@@ -304,6 +310,7 @@ ${l.time}<br>
 <span class="tag ${l.type==='IN'?'in':'out'}">
 ${l.type}
 </span>
+
 <div class="purpose">
 📌 ${l.purpose || 'No purpose'}
 </div>
@@ -329,14 +336,13 @@ markers.push(marker);
 
 }
 
-// ===============================
+// =====================================
 // CHARTS
-// ===============================
+// =====================================
 function renderCharts(data){
 
 let inCount=0;
 let outCount=0;
-
 let purposeCount={};
 
 data.forEach(d=>{

@@ -71,40 +71,101 @@ color:#fff;
 border:1px solid #334155;
 }
 
+/* =========================
+PREMIUM POPUP
+========================= */
+
+.leaflet-popup-content-wrapper{
+background:#0f172a;
+color:#fff;
+border-radius:16px;
+padding:0;
+box-shadow:0 10px 30px rgba(0,0,0,.45);
+}
+
+.leaflet-popup-content{
+margin:0;
+width:280px !important;
+max-height:320px;
+overflow-y:auto;
+}
+
+.leaflet-popup-tip{
+background:#0f172a;
+}
+
 .popup-card{
-background:lightgray;
-padding:10px;
-border-radius:10px;
-margin-bottom:8px;
-font-size:13px;
+background:#111827;
+border-radius:14px;
+padding:12px;
+margin:10px;
+border:1px solid #1f2937;
+box-shadow:0 4px 12px rgba(0,0,0,.25);
 }
 
-.tag{
-display:inline-block;
-padding:4px 8px;
-border-radius:8px;
+.popup-top{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+margin-bottom:10px;
+}
+
+.emp-name{
+font-size:15px;
+font-weight:700;
+color:#fff;
+}
+
+.emp-time{
 font-size:11px;
-font-weight:bold;
-margin-top:6px;
+color:#94a3b8;
+margin-top:3px;
 }
 
-.in{background:#16a34a;}
-.out{background:#dc2626;}
+.status-tag{
+padding:6px 10px;
+border-radius:999px;
+font-size:11px;
+font-weight:700;
+}
 
-.purpose{
-margin-top:8px;
-padding:8px;
-background:white;
+.status-in{
+background:#14532d;
+color:#86efac;
+}
+
+.status-out{
+background:#7f1d1d;
+color:#fca5a5;
+}
+
+.popup-purpose{
+background:#0f172a;
+border:1px solid #1e293b;
 border-left:4px solid #38bdf8;
-border-radius:8px;
+padding:10px;
+border-radius:12px;
 font-size:12px;
+line-height:1.45;
+color:#e2e8f0;
 }
 
+.popup-footer{
+margin-top:10px;
+padding-top:10px;
+border-top:1px solid #1e293b;
+font-size:11px;
+color:#94a3b8;
+}
+
+/* CHARTS */
 canvas{
 background:#fff;
 border-radius:10px;
 padding:10px;
 }
+
 </style>
 </head>
 <body>
@@ -141,11 +202,9 @@ padding:10px;
 
 <script>
 
-// ======================================
-// FIREBASE CONFIG
-// ======================================
+// FIREBASE
 const firebaseConfig = {
- apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
+apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
@@ -153,9 +212,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// ======================================
 // MAP
-// ======================================
 const map = L.map("map").setView([15.486,120.967],13);
 
 L.tileLayer(
@@ -168,9 +225,7 @@ let allLogs=[];
 let chart1=null;
 let chart2=null;
 
-// ======================================
-// LOAD DATA REALTIME
-// ======================================
+// LOAD DATA
 db.collection("attendance")
 .orderBy("timestamp")
 .onSnapshot(snapshot=>{
@@ -181,31 +236,25 @@ snapshot.forEach(doc=>{
 allLogs.push(doc.data());
 });
 
-// GET EMPLOYEE LIST FROM FIELD LOGS
 loadEmployeeFilter();
-
 renderAll();
 
 });
 
-// ======================================
 // FILTER EVENTS
-// ======================================
 document.getElementById("employeeFilter")
 .addEventListener("change",renderAll);
 
 document.getElementById("dateFilter")
 .addEventListener("change",renderAll);
 
-// ======================================
-// LOAD EMPLOYEE FILTER
-// ======================================
+// EMPLOYEE FILTER
 function loadEmployeeFilter(){
 
 const select =
 document.getElementById("employeeFilter");
 
-let currentValue = select.value;
+let current = select.value;
 
 let names =
 [...new Set(allLogs.map(x=>x.name))];
@@ -222,18 +271,15 @@ ${name}
 
 });
 
-// keep selected value
-if(names.includes(currentValue)){
-select.value = currentValue;
+if(names.includes(current)){
+select.value=current;
 }else{
-select.value = "ALL";
+select.value="ALL";
 }
 
 }
 
-// ======================================
-// GET FILTERED DATA
-// ======================================
+// GET FILTERED
 function getFiltered(){
 
 const emp =
@@ -247,7 +293,7 @@ return allLogs.filter(item=>{
 let empOk =
 (emp==="ALL" || item.name===emp);
 
-let dateOk = true;
+let dateOk=true;
 
 if(date){
 
@@ -266,21 +312,17 @@ return empOk && dateOk;
 
 }
 
-// ======================================
 // RENDER ALL
-// ======================================
 function renderAll(){
 
-let data = getFiltered();
+let data=getFiltered();
 
 renderMap(data);
 renderCharts(data);
 
 }
 
-// ======================================
 // MAP
-// ======================================
 function renderMap(data){
 
 markers.forEach(m=>map.removeLayer(m));
@@ -317,15 +359,26 @@ logs.forEach(l=>{
 html += `
 <div class="popup-card">
 
-<b>${l.name}</b><br>
-${l.time}<br>
+<div class="popup-top">
 
-<span class="tag ${l.type==='IN'?'in':'out'}">
+<div>
+<div class="emp-name">${l.name}</div>
+<div class="emp-time">🕒 ${l.time}</div>
+</div>
+
+<div class="status-tag ${l.type==='IN'?'status-in':'status-out'}">
 ${l.type}
-</span>
+</div>
 
-<div class="purpose">
+</div>
+
+<div class="popup-purpose">
 📌 ${l.purpose || "No purpose"}
+</div>
+
+<div class="popup-footer">
+📍 Lat: ${Number(l.lat).toFixed(5)} |
+Lon: ${Number(l.lon).toFixed(5)}
 </div>
 
 </div>
@@ -350,9 +403,7 @@ markers.push(marker);
 
 }
 
-// ======================================
 // CHARTS
-// ======================================
 function renderCharts(data){
 
 let inCount=0;
@@ -364,7 +415,7 @@ data.forEach(d=>{
 if(d.type==="IN") inCount++;
 if(d.type==="OUT") outCount++;
 
-let p = d.purpose || "None";
+let p=d.purpose || "None";
 
 if(!purposeCount[p]){
 purposeCount[p]=0;

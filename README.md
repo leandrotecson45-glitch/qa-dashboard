@@ -17,13 +17,13 @@ font-family:Arial,sans-serif;
 }
 
 body{
-background:SKYBLUE;
-color:#fff;
+background:#040720;
+color:#040720;
 }
 
 /* HEADER */
 header{
-background:#040720;
+background:SKYBLUE;
 padding:16px;
 text-align:center;
 font-size:24px;

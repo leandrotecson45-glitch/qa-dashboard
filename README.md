@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>QA Dashboard</title>
+<title>QA Admin Dashboard</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,16 +21,19 @@ background:#0f172a;
 color:#fff;
 }
 
+/* HEADER */
 header{
 background:#111827;
-padding:15px;
+padding:16px;
 text-align:center;
-font-size:22px;
-font-weight:bold;
+font-size:24px;
+font-weight:700;
+box-shadow:0 4px 15px rgba(0,0,0,.25);
 }
 
+/* FILTER */
 .topbar{
-padding:15px;
+padding:14px;
 display:flex;
 gap:10px;
 flex-wrap:wrap;
@@ -38,29 +41,64 @@ background:#1e293b;
 }
 
 select,input{
-padding:10px;
+padding:11px;
 border:none;
-border-radius:10px;
+border-radius:12px;
 font-size:14px;
 }
 
+/* SUMMARY */
+.summary{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:12px;
+padding:14px;
+}
+
+.sum-card{
+background:#111827;
+padding:15px;
+border-radius:14px;
+box-shadow:0 4px 12px rgba(0,0,0,.25);
+}
+
+.sum-title{
+font-size:13px;
+color:#94a3b8;
+margin-bottom:8px;
+}
+
+.sum-value{
+font-size:26px;
+font-weight:700;
+}
+
+/* MAP */
 #map{
 height:420px;
 width:100%;
 }
 
+/* SECTION */
 .section{
-padding:15px;
+padding:14px;
 }
 
 .card{
-background:#1e293b;
-padding:15px;
+background:#111827;
+padding:14px;
 border-radius:14px;
-margin-bottom:15px;
-box-shadow:0 4px 10px rgba(0,0,0,.25);
+margin-bottom:14px;
+box-shadow:0 4px 12px rgba(0,0,0,.25);
 }
 
+canvas{
+background:#fff;
+border-radius:10px;
+padding:10px;
+}
+
+/* PIN */
 .pin-box{
 background:#111827;
 padding:6px 10px;
@@ -71,106 +109,86 @@ color:#fff;
 border:1px solid #334155;
 }
 
-/* =========================
-PREMIUM POPUP
-========================= */
-
+/* POPUP */
 .leaflet-popup-content-wrapper{
 background:#0f172a;
 color:#fff;
 border-radius:16px;
-padding:0;
-box-shadow:0 10px 30px rgba(0,0,0,.45);
-}
-
-.leaflet-popup-content{
-margin:0;
-width:280px !important;
-max-height:320px;
-overflow-y:auto;
 }
 
 .leaflet-popup-tip{
 background:#0f172a;
 }
 
+.leaflet-popup-content{
+margin:10px;
+width:280px !important;
+max-height:320px;
+overflow-y:auto;
+}
+
 .popup-card{
 background:#111827;
-border-radius:14px;
 padding:12px;
-margin:10px;
-border:1px solid #1f2937;
-box-shadow:0 4px 12px rgba(0,0,0,.25);
+border-radius:14px;
+margin-bottom:10px;
 }
 
 .popup-top{
 display:flex;
 justify-content:space-between;
 align-items:center;
-gap:10px;
 margin-bottom:10px;
 }
 
-.emp-name{
-font-size:15px;
+.emp{
 font-weight:700;
-color:#fff;
+font-size:15px;
 }
 
-.emp-time{
+.tm{
 font-size:11px;
 color:#94a3b8;
-margin-top:3px;
+margin-top:4px;
 }
 
-.status-tag{
-padding:6px 10px;
+.tag{
+padding:5px 9px;
 border-radius:999px;
 font-size:11px;
 font-weight:700;
 }
 
-.status-in{
-background:#14532d;
-color:#86efac;
-}
+.in{background:#14532d;color:#86efac;}
+.out{background:#7f1d1d;color:#fca5a5;}
 
-.status-out{
-background:#7f1d1d;
-color:#fca5a5;
-}
-
-.popup-purpose{
+.purpose{
+padding:9px;
 background:#0f172a;
-border:1px solid #1e293b;
 border-left:4px solid #38bdf8;
-padding:10px;
-border-radius:12px;
+border-radius:10px;
 font-size:12px;
-line-height:1.45;
-color:#e2e8f0;
 }
 
-.popup-footer{
+.warn{
+margin-top:8px;
+padding:8px;
+background:#7f1d1d;
+color:#fecaca;
+border-radius:10px;
+font-size:11px;
+}
+
+.footer{
 margin-top:10px;
-padding-top:10px;
-border-top:1px solid #1e293b;
 font-size:11px;
 color:#94a3b8;
 }
-
-/* CHARTS */
-canvas{
-background:#fff;
-border-radius:10px;
-padding:10px;
-}
-
 </style>
 </head>
 <body>
 
-<header>📊 QA Dashboard</header>
+<header>📊 QA ADMIN DASHBOARD</header>
 
 <div class="topbar">
 
@@ -179,6 +197,31 @@ padding:10px;
 </select>
 
 <input type="date" id="dateFilter">
+
+</div>
+
+<!-- SUMMARY -->
+<div class="summary">
+
+<div class="sum-card">
+<div class="sum-title">Employees Today</div>
+<div class="sum-value" id="empTotal">0</div>
+</div>
+
+<div class="sum-card">
+<div class="sum-title">TIME IN</div>
+<div class="sum-value" id="inTotal">0</div>
+</div>
+
+<div class="sum-card">
+<div class="sum-title">TIME OUT</div>
+<div class="sum-value" id="outTotal">0</div>
+</div>
+
+<div class="sum-card">
+<div class="sum-title">Missing OUT</div>
+<div class="sum-value" id="missingTotal">0</div>
+</div>
 
 </div>
 
@@ -203,25 +246,25 @@ padding:10px;
 <script>
 
 // FIREBASE
-const firebaseConfig = {
+const firebaseConfig={
 apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db=firebase.firestore();
 
 // MAP
-const map = L.map("map").setView([15.486,120.967],13);
+const map=L.map("map").setView([15.486,120.967],13);
 
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 {maxZoom:19}
 ).addTo(map);
 
-let markers=[];
 let allLogs=[];
+let markers=[];
 let chart1=null;
 let chart2=null;
 
@@ -241,40 +284,35 @@ renderAll();
 
 });
 
-// FILTER EVENTS
+// FILTER
 document.getElementById("employeeFilter")
-.addEventListener("change",renderAll);
+.onchange=renderAll;
 
 document.getElementById("dateFilter")
-.addEventListener("change",renderAll);
+.onchange=renderAll;
 
 // EMPLOYEE FILTER
 function loadEmployeeFilter(){
 
-const select =
+const select=
 document.getElementById("employeeFilter");
 
-let current = select.value;
+let cur=select.value;
 
-let names =
-[...new Set(allLogs.map(x=>x.name))];
+let names=[
+...new Set(allLogs.map(x=>x.name))
+];
 
-select.innerHTML =
+select.innerHTML=
 '<option value="ALL">All Employees</option>';
 
-names.forEach(name=>{
-
-select.innerHTML +=
-`<option value="${name}">
-${name}
-</option>`;
-
+names.forEach(n=>{
+select.innerHTML+=
+`<option value="${n}">${n}</option>`;
 });
 
-if(names.includes(current)){
-select.value=current;
-}else{
-select.value="ALL";
+if(names.includes(cur)){
+select.value=cur;
 }
 
 }
@@ -282,28 +320,27 @@ select.value="ALL";
 // GET FILTERED
 function getFiltered(){
 
-const emp =
+const emp=
 document.getElementById("employeeFilter").value;
 
-const date =
+const date=
 document.getElementById("dateFilter").value;
 
-return allLogs.filter(item=>{
+return allLogs.filter(x=>{
 
-let empOk =
-(emp==="ALL" || item.name===emp);
+let empOk=
+(emp==="ALL" || x.name===emp);
 
 let dateOk=true;
 
 if(date){
 
-let itemDate =
-new Date(item.timestamp)
+let d=
+new Date(x.timestamp)
 .toISOString()
 .split("T")[0];
 
-dateOk = itemDate===date;
-
+dateOk=d===date;
 }
 
 return empOk && dateOk;
@@ -312,13 +349,51 @@ return empOk && dateOk;
 
 }
 
-// RENDER ALL
+// MAIN
 function renderAll(){
 
 let data=getFiltered();
 
+renderSummary(data);
 renderMap(data);
 renderCharts(data);
+
+}
+
+// SUMMARY
+function renderSummary(data){
+
+let names=[
+...new Set(data.map(x=>x.name))
+];
+
+let ins=
+data.filter(x=>x.type==="IN").length;
+
+let outs=
+data.filter(x=>x.type==="OUT").length;
+
+// missing timeout
+let grouped={};
+
+data.forEach(x=>{
+if(!grouped[x.name]) grouped[x.name]=[];
+grouped[x.name].push(x.type);
+});
+
+let missing=0;
+
+Object.keys(grouped).forEach(n=>{
+if(grouped[n].includes("IN") &&
+!grouped[n].includes("OUT")){
+missing++;
+}
+});
+
+document.getElementById("empTotal").innerText=names.length;
+document.getElementById("inTotal").innerText=ins;
+document.getElementById("outTotal").innerText=outs;
+document.getElementById("missingTotal").innerText=missing;
 
 }
 
@@ -332,12 +407,10 @@ let grouped={};
 
 data.forEach(d=>{
 
-let key =
+let key=
 d.lat.toFixed(5)+","+d.lon.toFixed(5);
 
-if(!grouped[key]){
-grouped[key]=[];
-}
+if(!grouped[key]) grouped[key]=[];
 
 grouped[key].push(d);
 
@@ -350,35 +423,45 @@ let logs=grouped[key];
 let lat=logs[0].lat;
 let lon=logs[0].lon;
 
-logs.sort((a,b)=>b.timestamp-a.timestamp);
+logs.sort((a,b)=>
+b.timestamp-a.timestamp
+);
 
 let html="";
 
 logs.forEach(l=>{
 
-html += `
+let warn="";
+
+if(l.type==="IN"){
+warn=`<div class="warn">⚠ No timeout yet</div>`;
+}
+
+html+=`
 <div class="popup-card">
 
 <div class="popup-top">
 
 <div>
-<div class="emp-name">${l.name}</div>
-<div class="emp-time">🕒 ${l.time}</div>
+<div class="emp">${l.name}</div>
+<div class="tm">${l.time}</div>
 </div>
 
-<div class="status-tag ${l.type==='IN'?'status-in':'status-out'}">
+<div class="tag ${l.type==='IN'?'in':'out'}">
 ${l.type}
 </div>
 
 </div>
 
-<div class="popup-purpose">
-📌 ${l.purpose || "No purpose"}
+<div class="purpose">
+📌 ${l.purpose || 'No purpose'}
 </div>
 
-<div class="popup-footer">
-📍 Lat: ${Number(l.lat).toFixed(5)} |
-Lon: ${Number(l.lon).toFixed(5)}
+${warn}
+
+<div class="footer">
+📍 ${Number(l.lat).toFixed(5)},
+${Number(l.lon).toFixed(5)}
 </div>
 
 </div>
@@ -406,29 +489,27 @@ markers.push(marker);
 // CHARTS
 function renderCharts(data){
 
-let inCount=0;
-let outCount=0;
-let purposeCount={};
+let inC=0;
+let outC=0;
+let purpose={};
 
-data.forEach(d=>{
+data.forEach(x=>{
 
-if(d.type==="IN") inCount++;
-if(d.type==="OUT") outCount++;
+if(x.type==="IN") inC++;
+if(x.type==="OUT") outC++;
 
-let p=d.purpose || "None";
+let p=x.purpose || "None";
 
-if(!purposeCount[p]){
-purposeCount[p]=0;
-}
+if(!purpose[p]) purpose[p]=0;
 
-purposeCount[p]++;
+purpose[p]++;
 
 });
 
 // BAR
 if(chart1) chart1.destroy();
 
-chart1 =
+chart1=
 new Chart(
 document.getElementById("typeChart"),
 {
@@ -437,7 +518,7 @@ data:{
 labels:["IN","OUT"],
 datasets:[{
 label:"Logs",
-data:[inCount,outCount]
+data:[inC,outC]
 }]
 }
 });
@@ -445,15 +526,15 @@ data:[inCount,outCount]
 // PIE
 if(chart2) chart2.destroy();
 
-chart2 =
+chart2=
 new Chart(
 document.getElementById("purposeChart"),
 {
 type:"pie",
 data:{
-labels:Object.keys(purposeCount),
+labels:Object.keys(purpose),
 datasets:[{
-data:Object.values(purposeCount)
+data:Object.values(purpose)
 }]
 }
 });

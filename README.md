@@ -26,7 +26,7 @@ header{
 background:SKYBLUE;
 padding:16px;
 text-align:center;
-font-size:24px;
+font-size:30px;
 font-weight:700;
 box-shadow:0 4px 15px rgba(0,0,0,.25);
 }
@@ -64,13 +64,14 @@ box-shadow:0 4px 12px rgba(0,0,0,.25);
 
 .sum-title{
 font-size:13px;
-color:#94a3b8;
+color:WHITE;
 margin-bottom:8px;
 }
 
 .sum-value{
 font-size:26px;
 font-weight:700;
+ color:WHITE;
 }
 
 /* MAP */

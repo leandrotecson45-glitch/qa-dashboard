@@ -17,13 +17,13 @@ font-family:Arial,sans-serif;
 }
 
 body{
-background:#0f172a;
+background:SKYBLUE;
 color:#fff;
 }
 
 /* HEADER */
 header{
-background:#111827;
+background:#040720;
 padding:16px;
 text-align:center;
 font-size:24px;
@@ -37,7 +37,7 @@ padding:14px;
 display:flex;
 gap:10px;
 flex-wrap:wrap;
-background:#1e293b;
+background:#007C80;
 }
 
 select,input{
@@ -85,7 +85,7 @@ padding:14px;
 }
 
 .card{
-background:#111827;
+background:#040720;
 padding:14px;
 border-radius:14px;
 margin-bottom:14px;
@@ -188,7 +188,7 @@ color:#94a3b8;
 </head>
 <body>
 
-<header>📊 QA ADMIN DASHBOARD</header>
+<header>QA ADMIN DASHBOARD</header>
 
 <div class="topbar">
 

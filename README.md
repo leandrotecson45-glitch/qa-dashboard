@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>QA Admin Dashboard</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -17,16 +17,16 @@ font-family:Arial,sans-serif;
 }
 
 body{
-background:#040720;
-color:#040720;
+background:#0f172a;
+color:#fff;
 }
 
 /* HEADER */
 header{
-background:SKYBLUE;
+background:#111827;
 padding:16px;
 text-align:center;
-font-size:30px;
+font-size:24px;
 font-weight:700;
 box-shadow:0 4px 15px rgba(0,0,0,.25);
 }
@@ -37,7 +37,7 @@ padding:14px;
 display:flex;
 gap:10px;
 flex-wrap:wrap;
-background:#007C80;
+background:#1e293b;
 }
 
 select,input{
@@ -64,20 +64,28 @@ box-shadow:0 4px 12px rgba(0,0,0,.25);
 
 .sum-title{
 font-size:13px;
-color:WHITE;
+color:#94a3b8;
 margin-bottom:8px;
 }
 
 .sum-value{
 font-size:26px;
 font-weight:700;
- color:WHITE;
 }
 
-/* MAP */
+/* 🔥 LARGE MAP */
 #map{
-height:420px;
+height:78vh;
+min-height:650px;
 width:100%;
+}
+
+/* MOBILE */
+@media(max-width:768px){
+#map{
+height:62vh;
+min-height:500px;
+}
 }
 
 /* SECTION */
@@ -86,7 +94,7 @@ padding:14px;
 }
 
 .card{
-background:#040720;
+background:#111827;
 padding:14px;
 border-radius:14px;
 margin-bottom:14px;
@@ -171,15 +179,6 @@ border-radius:10px;
 font-size:12px;
 }
 
-.warn{
-margin-top:8px;
-padding:8px;
-background:#7f1d1d;
-color:#fecaca;
-border-radius:10px;
-font-size:11px;
-}
-
 .footer{
 margin-top:10px;
 font-size:11px;
@@ -189,19 +188,16 @@ color:#94a3b8;
 </head>
 <body>
 
-<header>QA ADMIN DASHBOARD</header>
+<header>📊 QA ADMIN DASHBOARD</header>
 
 <div class="topbar">
-
 <select id="employeeFilter">
 <option value="ALL">All Employees</option>
 </select>
 
 <input type="date" id="dateFilter">
-
 </div>
 
-<!-- SUMMARY -->
 <div class="summary">
 
 <div class="sum-card">
@@ -246,18 +242,18 @@ color:#94a3b8;
 
 <script>
 
-// FIREBASE
-const firebaseConfig={
+// FIREBASE CONFIG
+const firebaseConfig = {
 apiKey: "AIzaSyDZ2YOn7k1h5kSUppZcWfZ5gAvJlaOVVuA",
   authDomain: "attendance1-697b2.firebaseapp.com",
   projectId: "attendance1-697b2"
 };
 
 firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
+const db = firebase.firestore();
 
 // MAP
-const map=L.map("map").setView([15.486,120.967],13);
+const map = L.map("map").setView([15.486,120.967],13);
 
 L.tileLayer(
 "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -269,7 +265,7 @@ let markers=[];
 let chart1=null;
 let chart2=null;
 
-// LOAD DATA
+// LOAD REALTIME DATA
 db.collection("attendance")
 .orderBy("timestamp")
 .onSnapshot(snapshot=>{
@@ -285,7 +281,7 @@ renderAll();
 
 });
 
-// FILTER
+// FILTER EVENTS
 document.getElementById("employeeFilter")
 .onchange=renderAll;
 
@@ -295,53 +291,54 @@ document.getElementById("dateFilter")
 // EMPLOYEE FILTER
 function loadEmployeeFilter(){
 
-const select=
+const select =
 document.getElementById("employeeFilter");
 
-let cur=select.value;
+let cur = select.value;
 
-let names=[
+let names = [
 ...new Set(allLogs.map(x=>x.name))
 ];
 
-select.innerHTML=
+select.innerHTML =
 '<option value="ALL">All Employees</option>';
 
 names.forEach(n=>{
-select.innerHTML+=
+select.innerHTML +=
 `<option value="${n}">${n}</option>`;
 });
 
 if(names.includes(cur)){
-select.value=cur;
+select.value = cur;
 }
 
 }
 
-// GET FILTERED
+// FILTER DATA
 function getFiltered(){
 
-const emp=
+const emp =
 document.getElementById("employeeFilter").value;
 
-const date=
+const date =
 document.getElementById("dateFilter").value;
 
 return allLogs.filter(x=>{
 
-let empOk=
+let empOk =
 (emp==="ALL" || x.name===emp);
 
-let dateOk=true;
+let dateOk = true;
 
 if(date){
 
-let d=
+let d =
 new Date(x.timestamp)
 .toISOString()
 .split("T")[0];
 
-dateOk=d===date;
+dateOk = d===date;
+
 }
 
 return empOk && dateOk;
@@ -353,7 +350,7 @@ return empOk && dateOk;
 // MAIN
 function renderAll(){
 
-let data=getFiltered();
+let data = getFiltered();
 
 renderSummary(data);
 renderMap(data);
@@ -368,13 +365,12 @@ let names=[
 ...new Set(data.map(x=>x.name))
 ];
 
-let ins=
+let ins =
 data.filter(x=>x.type==="IN").length;
 
-let outs=
+let outs =
 data.filter(x=>x.type==="OUT").length;
 
-// missing timeout
 let grouped={};
 
 data.forEach(x=>{
@@ -385,10 +381,12 @@ grouped[x.name].push(x.type);
 let missing=0;
 
 Object.keys(grouped).forEach(n=>{
+
 if(grouped[n].includes("IN") &&
 !grouped[n].includes("OUT")){
 missing++;
 }
+
 });
 
 document.getElementById("empTotal").innerText=names.length;
@@ -408,7 +406,7 @@ let grouped={};
 
 data.forEach(d=>{
 
-let key=
+let key =
 d.lat.toFixed(5)+","+d.lon.toFixed(5);
 
 if(!grouped[key]) grouped[key]=[];
@@ -419,26 +417,18 @@ grouped[key].push(d);
 
 Object.keys(grouped).forEach(key=>{
 
-let logs=grouped[key];
+let logs = grouped[key];
 
-let lat=logs[0].lat;
-let lon=logs[0].lon;
+let lat = logs[0].lat;
+let lon = logs[0].lon;
 
-logs.sort((a,b)=>
-b.timestamp-a.timestamp
-);
+logs.sort((a,b)=>b.timestamp-a.timestamp);
 
 let html="";
 
 logs.forEach(l=>{
 
-let warn="";
-
-if(l.type==="IN"){
-warn=`<div class="warn">⚠ No timeout yet</div>`;
-}
-
-html+=`
+html += `
 <div class="popup-card">
 
 <div class="popup-top">
@@ -457,8 +447,6 @@ ${l.type}
 <div class="purpose">
 📌 ${l.purpose || 'No purpose'}
 </div>
-
-${warn}
 
 <div class="footer">
 📍 ${Number(l.lat).toFixed(5)},
@@ -499,7 +487,7 @@ data.forEach(x=>{
 if(x.type==="IN") inC++;
 if(x.type==="OUT") outC++;
 
-let p=x.purpose || "None";
+let p = x.purpose || "None";
 
 if(!purpose[p]) purpose[p]=0;
 
@@ -510,8 +498,7 @@ purpose[p]++;
 // BAR
 if(chart1) chart1.destroy();
 
-chart1=
-new Chart(
+chart1 = new Chart(
 document.getElementById("typeChart"),
 {
 type:"bar",
@@ -527,8 +514,7 @@ data:[inC,outC]
 // PIE
 if(chart2) chart2.destroy();
 
-chart2=
-new Chart(
+chart2 = new Chart(
 document.getElementById("purposeChart"),
 {
 type:"pie",
